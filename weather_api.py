@@ -4,6 +4,8 @@ import json
 import os
 from datetime import datetime
 
+#попа
+
 class WeatherAPI:
     """Класс для работы с API погоды Open-Meteo"""
     
