@@ -21,11 +21,25 @@ class WeatherApp(ctk.CTk):
         self.wind_speed_unit = ctk.StringVar(value="kmh")
         self.auto_save = ctk.BooleanVar(value=True)
         
+        # Дополнительные переменные для настроек (как на скриншотах)
+        self.pressure_unit = ctk.StringVar(value="mmhg")           # мм рт. ст.
+        self.precipitation_unit = ctk.StringVar(value="mm")        # мм
+        self.theme = ctk.StringVar(value="dark")                   # Тёмная тема
+        self.language = ctk.StringVar(value="ru")                  # Русский язык
+        self.folder_path = ctk.StringVar(value="weather_data/")    # Папка для сохранения
+        self.update_period = ctk.IntVar(value=15)                  # 15 минут
+        
         # Словарь с переменными настроек для передачи во вкладки
         self.settings_vars = {
             'temperature_unit': self.temperature_unit,
             'wind_speed_unit': self.wind_speed_unit,
-            'auto_save': self.auto_save
+            'auto_save': self.auto_save,
+            'pressure_unit': self.pressure_unit,
+            'precipitation_unit': self.precipitation_unit,
+            'theme': self.theme,
+            'language': self.language,
+            'folder_path': self.folder_path,
+            'update_period': self.update_period
         }
         
         # Создаем вкладки
