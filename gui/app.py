@@ -21,13 +21,19 @@ class WeatherApp(ctk.CTk):
         self.wind_speed_unit = ctk.StringVar(value="kmh")
         self.auto_save = ctk.BooleanVar(value=True)
         
-        # Дополнительные переменные для настроек (как на скриншотах)
-        self.pressure_unit = ctk.StringVar(value="mmhg")           # мм рт. ст.
-        self.precipitation_unit = ctk.StringVar(value="mm")        # мм
-        self.theme = ctk.StringVar(value="dark")                   # Тёмная тема
-        self.language = ctk.StringVar(value="ru")                  # Русский язык
-        self.folder_path = ctk.StringVar(value="weather_data/")    # Папка для сохранения
-        self.update_period = ctk.IntVar(value=15)                  # 15 минут
+        # Дополнительные переменные для настроек
+        self.pressure_unit = ctk.StringVar(value="mmhg")
+        self.precipitation_unit = ctk.StringVar(value="mm")
+        self.theme = ctk.StringVar(value="dark")
+        self.language = ctk.StringVar(value="ru")
+        self.folder_path = ctk.StringVar(value="weather_data/")
+        self.update_period = ctk.IntVar(value=15)
+        
+        # Применяем начальную тему
+        self.apply_theme(self.theme.get())
+        
+        # Отслеживаем изменение темы
+        self.theme.trace_add('write', self.on_theme_changed)
         
         # Словарь с переменными настроек для передачи во вкладки
         self.settings_vars = {
@@ -48,6 +54,23 @@ class WeatherApp(ctk.CTk):
         # Привязываем Enter к поиску
         self.weather_tab.city_entry.bind('<Return>', lambda event: self.search_weather())
     
+    def apply_theme(self, theme_name):
+        """Применение темы оформления"""
+        if theme_name == "light":
+            ctk.set_appearance_mode("light")
+        elif theme_name == "dark":
+            ctk.set_appearance_mode("dark")
+        else:  # system
+            ctk.set_appearance_mode("system")
+    
+    def on_theme_changed(self, *args):
+        """Обработчик изменения темы"""
+        self.apply_theme(self.theme.get())
+        
+        # Обновляем цвета во вкладках, если это необходимо
+        if hasattr(self, 'settings_tab'):
+            self.settings_tab.update_theme_colors(self.theme.get())
+    
     def setup_tabs(self):
         """Создание вкладок"""
         # Создаем вкладки
@@ -66,18 +89,34 @@ class WeatherApp(ctk.CTk):
             self.weather_api,
             {
                 'search': self.search_weather,
-                'city_selected': self.get_weather  # Добавляем callback для выбора города из списка
+                'city_selected': self.get_weather
             }
         )
         
-        self.tab2 = Tab2(self.tab_view.tab("📊 Вкладка 2"))
+        # Обновленная инициализация Tab2 с передачей weather_api и settings_vars
+        self.tab2 = Tab2(
+            self.tab_view.tab("📊 Вкладка 2"),
+            self.weather_api,
+            self.settings_vars
+        )
+        
         self.tab3 = Tab3(self.tab_view.tab("📈 Вкладка 3"))
         
         self.settings_tab = SettingsTab(
             self.tab_view.tab("⚙️ Настройки"),
             self.settings_vars,
-            {'save_settings': self.save_settings}
+            {
+                'save_settings': self.save_settings,
+                'browse_folder': self.browse_folder
+            }
         )
+    
+    def browse_folder(self):
+        """Открытие диалога выбора папки"""
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Выберите папку для сохранения данных")
+        if folder:
+            self.folder_path.set(folder)
     
     def search_weather(self):
         """Поиск погоды"""
@@ -113,7 +152,6 @@ class WeatherApp(ctk.CTk):
         else:
             # Если найдено несколько городов, показываем их в выпадающем списке
             self.weather_tab.show_status(f"✅ Найдено {len(results)} городов. Выберите из списка.", "blue")
-            # Выпадающий список уже должен был появиться через on_key_release
             self.weather_tab.set_search_button_state("normal", "🔍 Найти")
     
     def get_weather(self, city_info):
@@ -154,6 +192,9 @@ class WeatherApp(ctk.CTk):
                 full_name, weather_data, temp_unit, wind_unit
             ))
             
+            # После обновления текущей погоды, передаем город для прогноза
+            self.after(0, lambda: self.set_city_for_forecast(city_info))
+            
             # Сохраняем в файл если нужно
             if self.auto_save.get():
                 self.weather_api.save_weather_data(weather_data, city_name, country, True)
@@ -164,6 +205,12 @@ class WeatherApp(ctk.CTk):
         
         self.weather_tab.set_search_button_state("normal", "🔍 Найти")
     
+    def set_city_for_forecast(self, city_info):
+        """Передает выбранный город во вкладку с прогнозом"""
+        if hasattr(self, 'tab2'):
+            self.tab2.set_city(city_info)
+    
     def save_settings(self):
         """Сохранение настроек"""
+        # Здесь можно добавить сохранение настроек в файл
         self.settings_tab.show_save_status("✅ Настройки сохранены", "green")
