@@ -13,39 +13,45 @@ class SettingsTab:
         self.callbacks = callbacks
         self.settings_status = None
         self.about_frame = None
+        self.settings_frame = None
+        self.main_frame = None
+        
+        # Устанавливаем цвет фона родительского фрейма
+        self.parent.configure(fg_color="transparent")
         
         self.setup_ui()
+        
+        # Отслеживаем изменение темы
+        self.settings_vars['theme'].trace_add('write', self.on_theme_changed)
     
     def setup_ui(self):
-        # Основной фрейм с прокруткой на случай маленького экрана
-        main_frame = ctk.CTkScrollableFrame(self.parent, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # Основной фрейм с прокруткой
+        self.main_frame = ctk.CTkScrollableFrame(self.parent, fg_color="transparent")
+        self.main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Фрейм для настроек
-        settings_frame = ctk.CTkFrame(main_frame, fg_color="white", corner_radius=10)
-        settings_frame.pack(fill="x", padx=10, pady=10)
+        self.settings_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
+        self.settings_frame.pack(fill="x", padx=10, pady=10)
         
         # Заголовок "НАСТРОЙКИ ПРИЛОЖЕНИЯ"
         title = ctk.CTkLabel(
-            settings_frame,
+            self.settings_frame,
             text="НАСТРОЙКИ ПРИЛОЖЕНИЯ",
-            font=("Arial", 24, "bold"),
-            text_color="black"
+            font=("Arial", 24, "bold")
         )
         title.pack(pady=(20, 10))
         
         # --- БЛОК ЕДИНИЦЫ ИЗМЕРЕНИЯ ---
         units_label = ctk.CTkLabel(
-            settings_frame,
+            self.settings_frame,
             text="ЕДИНИЦЫ ИЗМЕРЕНИЯ",
-            font=("Arial", 18, "bold"),
-            text_color="black"
+            font=("Arial", 18, "bold")
         )
         units_label.pack(anchor="w", padx=20, pady=(15, 5))
         
         # Температура
         temp_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Температура:", 
             'temperature_unit',
             [
@@ -57,7 +63,7 @@ class SettingsTab:
         
         # Скорость ветра
         wind_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Скорость ветра:", 
             'wind_speed_unit',
             [
@@ -69,7 +75,7 @@ class SettingsTab:
         
         # Давление
         pressure_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Давление:", 
             'pressure_unit',
             [
@@ -81,7 +87,7 @@ class SettingsTab:
         
         # Осадки
         precip_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Осадки:", 
             'precipitation_unit',
             [
@@ -92,21 +98,20 @@ class SettingsTab:
         precip_frame.pack(fill="x", padx=30, pady=5)
         
         # Разделитель
-        separator1 = ctk.CTkFrame(settings_frame, height=2, fg_color="#E0E0E0")
+        separator1 = ctk.CTkFrame(self.settings_frame, height=2, fg_color="gray")
         separator1.pack(fill="x", padx=20, pady=15)
         
         # --- БЛОК ОФОРМЛЕНИЕ ---
         design_label = ctk.CTkLabel(
-            settings_frame,
+            self.settings_frame,
             text="ОФОРМЛЕНИЕ",
-            font=("Arial", 18, "bold"),
-            text_color="black"
+            font=("Arial", 18, "bold")
         )
         design_label.pack(anchor="w", padx=20, pady=(5, 5))
         
         # Тема
         theme_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Тема:", 
             'theme',
             [
@@ -119,7 +124,7 @@ class SettingsTab:
         
         # Язык
         lang_frame = self._create_unit_frame(
-            settings_frame, 
+            self.settings_frame, 
             "Язык:", 
             'language',
             [
@@ -130,40 +135,37 @@ class SettingsTab:
         lang_frame.pack(fill="x", padx=30, pady=5)
         
         # Разделитель
-        separator2 = ctk.CTkFrame(settings_frame, height=2, fg_color="#E0E0E0")
+        separator2 = ctk.CTkFrame(self.settings_frame, height=2, fg_color="gray")
         separator2.pack(fill="x", padx=20, pady=15)
         
         # --- БЛОК ДАННЫЕ ---
         data_label = ctk.CTkLabel(
-            settings_frame,
+            self.settings_frame,
             text="ДАННЫЕ",
-            font=("Arial", 18, "bold"),
-            text_color="black"
+            font=("Arial", 18, "bold")
         )
         data_label.pack(anchor="w", padx=20, pady=(5, 5))
         
         # Автосохранение с чекбоксом
-        auto_save_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        auto_save_frame = ctk.CTkFrame(self.settings_frame, fg_color="transparent")
         auto_save_frame.pack(fill="x", padx=30, pady=5)
         
         auto_save_check = ctk.CTkCheckBox(
             auto_save_frame,
             text="☑ Автоматически сохранять данные в файл",
             variable=self.settings_vars['auto_save'],
-            text_color="black",
             checkbox_width=20,
             checkbox_height=20
         )
         auto_save_check.pack(anchor="w", pady=5)
         
         # Папка с полем ввода
-        folder_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        folder_frame = ctk.CTkFrame(self.settings_frame, fg_color="transparent")
         folder_frame.pack(fill="x", padx=30, pady=5)
         
         folder_label = ctk.CTkLabel(
             folder_frame,
             text="Папка:",
-            text_color="black",
             width=60
         )
         folder_label.pack(side="left")
@@ -172,8 +174,6 @@ class SettingsTab:
             folder_frame,
             textvariable=self.settings_vars['folder_path'],
             width=200,
-            fg_color="white",
-            text_color="black",
             border_color="gray"
         )
         folder_entry.pack(side="left", padx=(5, 5))
@@ -185,19 +185,17 @@ class SettingsTab:
             height=28,
             command=self.callbacks.get('browse_folder', lambda: None),
             fg_color="#4A5568",
-            hover_color="#2D3748",
-            text_color="white"
+            hover_color="#2D3748"
         )
         browse_button.pack(side="left")
         
         # Период обновления
-        update_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        update_frame = ctk.CTkFrame(self.settings_frame, fg_color="transparent")
         update_frame.pack(fill="x", padx=30, pady=(15, 10))
         
         update_label = ctk.CTkLabel(
             update_frame,
             text="Период обновления:",
-            text_color="black",
             width=120
         )
         update_label.pack(side="left")
@@ -209,8 +207,7 @@ class SettingsTab:
             update_radio_frame,
             text="5 мин",
             variable=self.settings_vars['update_period'],
-            value=5,
-            text_color="black"
+            value=5
         )
         update_5min.pack(side="left", padx=10)
         
@@ -218,8 +215,7 @@ class SettingsTab:
             update_radio_frame,
             text="15 мин",
             variable=self.settings_vars['update_period'],
-            value=15,
-            text_color="black"
+            value=15
         )
         update_15min.pack(side="left", padx=10)
         
@@ -227,20 +223,18 @@ class SettingsTab:
             update_radio_frame,
             text="30 мин",
             variable=self.settings_vars['update_period'],
-            value=30,
-            text_color="black"
+            value=30
         )
         update_30min.pack(side="left", padx=10)
         
         # --- БЛОК О ПРОГРАММЕ (внизу, отдельно) ---
-        self.about_frame = ctk.CTkFrame(main_frame, fg_color="white", corner_radius=10)
+        self.about_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
         self.about_frame.pack(fill="x", padx=10, pady=(0, 10))
         
         about_label = ctk.CTkLabel(
             self.about_frame,
             text="О ПРОГРАММЕ",
-            font=("Arial", 18, "bold"),
-            text_color="black"
+            font=("Arial", 18, "bold")
         )
         about_label.pack(pady=(15, 10))
         
@@ -248,8 +242,7 @@ class SettingsTab:
         version_label = ctk.CTkLabel(
             self.about_frame,
             text="Погодный информатор v1.0",
-            font=("Arial", 14),
-            text_color="black"
+            font=("Arial", 14)
         )
         version_label.pack()
         
@@ -273,26 +266,27 @@ class SettingsTab:
         
         # --- КРАСНАЯ КНОПКА СОХРАНЕНИЯ ---
         save_button = ctk.CTkButton(
-            main_frame,
+            self.main_frame,
             text="СОХРАНИТЬ НАСТРОЙКИ",
             height=45,
             font=("Arial", 16, "bold"),
             command=self.callbacks.get('save_settings', lambda: self.show_save_status("Функция сохранения не реализована", "orange")),
             fg_color="#E53E3E",
             hover_color="#C53030",
-            text_color="white",
             corner_radius=8
         )
         save_button.pack(pady=20, padx=50, fill="x")
         
-        # Статус сохранения
+        # Статус сохранения - теперь будет адаптироваться под тему
         self.settings_status = ctk.CTkLabel(
-            main_frame,
+            self.main_frame,
             text="",
-            font=("Arial", 12),
-            text_color="green"
+            font=("Arial", 12)
         )
         self.settings_status.pack(pady=(0, 10))
+        
+        # Применяем начальную тему
+        self.update_theme_colors(self.settings_vars['theme'].get())
     
     def _create_unit_frame(self, parent, label_text, var_name, options):
         """
@@ -308,7 +302,6 @@ class SettingsTab:
         label = ctk.CTkLabel(
             frame,
             text=label_text,
-            text_color="black",
             width=120,
             anchor="w"
         )
@@ -324,8 +317,7 @@ class SettingsTab:
                 radio_container,
                 text=text,
                 variable=self.settings_vars[var_name],
-                value=value,
-                text_color="black"
+                value=value
             )
             radio.pack(side="left", padx=(0 if i == 0 else 20, 0))
         
@@ -333,14 +325,47 @@ class SettingsTab:
     
     def show_save_status(self, message, color="green"):
         """Показывает статус сохранения настроек"""
-        self.settings_status.configure(text=message, text_color=color)
+        # Преобразуем цвет в соответствии с темой
+        theme = self.settings_vars['theme'].get()
+        
+        # Выбираем цвет текста в зависимости от темы
+        if color == "green":
+            text_color = "#4CAF50" if theme == "light" else "#81C784"  # Светло-зеленый для темной темы
+        elif color == "red":
+            text_color = "#F44336" if theme == "light" else "#EF5350"
+        elif color == "orange":
+            text_color = "#FF9800" if theme == "light" else "#FFB74D"
+        elif color == "blue":
+            text_color = "#2196F3" if theme == "light" else "#64B5F6"
+        else:
+            text_color = color
+        
+        self.settings_status.configure(text=message, text_color=text_color)
         self.settings_status.after(3000, lambda: self.settings_status.configure(text=""))
+    
+    def on_theme_changed(self, *args):
+        """Обработчик изменения темы"""
+        self.update_theme_colors(self.settings_vars['theme'].get())
     
     def update_theme_colors(self, theme):
         """Обновление цветов в зависимости от темы"""
+        # Обновляем цвет разделителей
         if theme == "dark":
-            if self.about_frame:
-                self.about_frame.configure(fg_color="#2b2b2b")
+            separator_color = "#404040"
+            api_text_color = "#A0A0A0"
         else:
-            if self.about_frame:
-                self.about_frame.configure(fg_color="white")
+            separator_color = "#E0E0E0"
+            api_text_color = "gray"
+        
+        # Обновляем разделители
+        for child in self.settings_frame.winfo_children():
+            if isinstance(child, ctk.CTkFrame) and child.cget("height") == 2:
+                child.configure(fg_color=separator_color)
+        
+        # Обновляем текст об API в блоке "О программе"
+        if self.about_frame:
+            for child in self.about_frame.winfo_children():
+                if isinstance(child, ctk.CTkLabel) and "Open-Meteo" in child.cget("text"):
+                    child.configure(text_color=api_text_color)
+                elif isinstance(child, ctk.CTkLabel) and "©" in child.cget("text"):
+                    child.configure(text_color=api_text_color)
