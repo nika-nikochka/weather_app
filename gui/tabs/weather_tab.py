@@ -22,6 +22,7 @@ class WeatherTab:
         self.wind_direction_label = None
         self.time_label = None
         self.status_label = None
+        self.current_theme = "light"
         
         # Переменные для выпадающего списка
         self.dropdown_frame = None
@@ -46,8 +47,6 @@ class WeatherTab:
             placeholder_text="Введите название города на русском...",
             height=40,
             font=("Arial", 14),
-            text_color="black",
-            placeholder_text_color="gray",
             border_width=2,
             border_color="#CCCCCC"
         )
@@ -81,8 +80,7 @@ class WeatherTab:
         self.city_label = ctk.CTkLabel(
             self.weather_frame,
             text="Введите город для получения информации",
-            font=("Arial", 24, "bold"),
-            text_color="black"
+            font=("Arial", 24, "bold")
         )
         self.city_label.pack(pady=(30, 20))
         
@@ -91,7 +89,6 @@ class WeatherTab:
             self.weather_frame,
             text="",
             font=("Arial", 48),
-            text_color="black"
         )
         self.temp_label.pack(pady=10)
         
@@ -107,7 +104,6 @@ class WeatherTab:
             wind_frame,
             text="💨 Ветер",
             font=("Arial", 16),
-            text_color="black"
         )
         wind_label.pack()
         
@@ -115,7 +111,6 @@ class WeatherTab:
             wind_frame,
             text="",
             font=("Arial", 20, "bold"),
-            text_color="black"
         )
         self.wind_speed_label.pack()
         
@@ -127,7 +122,6 @@ class WeatherTab:
             direction_frame,
             text="🧭 Направление",
             font=("Arial", 16),
-            text_color="black"
         )
         direction_label.pack()
         
@@ -135,7 +129,6 @@ class WeatherTab:
             direction_frame,
             text="",
             font=("Arial", 20, "bold"),
-            text_color="black"
         )
         self.wind_direction_label.pack()
         
@@ -153,7 +146,6 @@ class WeatherTab:
             self.parent,
             text="",
             font=("Arial", 12),
-            text_color="black"
         )
         self.status_label.pack(pady=10)
     

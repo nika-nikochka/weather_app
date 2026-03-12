@@ -27,13 +27,13 @@ class Tab2:
     
     def setup_ui(self):
         """Создание интерфейса вкладки"""
-        # Основной контейнер
+        # Основной контейнер с большими отступами ТОЛЬКО ПО КРАЯМ вкладки
         self.main_frame = ctk.CTkFrame(self.parent, fg_color="transparent")
-        self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.main_frame.pack(fill="both", expand=True, padx=50, pady=30)  # Увеличенные отступы только по краям
         
         # Верхняя панель с информацией о городе и переключателем дней
         self.top_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
-        self.top_frame.pack(fill="x", pady=(0, 10))
+        self.top_frame.pack(fill="x", pady=(0, 20))
         
         # Информация о городе
         self.city_label = ctk.CTkLabel(
@@ -84,19 +84,21 @@ class Tab2:
         )
         self.update_button.pack(pady=(0, 15))
         
-        # --- ИЗМЕНЕНИЕ: Горизонтальный скроллинг ---
-        # Создаем фрейм с горизонтальной прокруткой
+        # --- ИЗМЕНЕНИЕ: Вертикальный скроллинг БЕЗ внутренних отступов ---
+        # Создаем фрейм с вертикальной прокруткой
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.main_frame, 
             corner_radius=10,
-            orientation="horizontal",  # Горизонтальная ориентация
-            height=200  # Фиксированная высота для горизонтального скролла
+            orientation="vertical",
         )
         self.scroll_frame.pack(fill="both", expand=True)
         
-        # Контейнер для карточек (будет заполняться динамически)
-        self.cards_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.cards_container.pack(side="left", fill="y", padx=5, pady=5)
+        # Внутренний контейнер для карточек (без отступов, чтобы поля были только по краям вкладки)
+        self.content_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+        self.content_frame.pack(fill="both", expand=True)  # Убраны padx и pady
+        
+        # Здесь будут создаваться строки с карточками динамически
+        self.rows = []  # Список для хранения строк
         
         # Статус
         self.status_label = ctk.CTkLabel(
@@ -104,7 +106,7 @@ class Tab2:
             text="",
             font=("Arial", 12)
         )
-        self.status_label.pack(pady=(5, 0))
+        self.status_label.pack(pady=(10, 0))
         
         # Показываем заглушку
         self.show_placeholder()
@@ -112,11 +114,12 @@ class Tab2:
     def show_placeholder(self):
         """Показывает заглушку, когда город не выбран"""
         # Очищаем контейнер
-        for widget in self.cards_container.winfo_children():
+        for widget in self.content_frame.winfo_children():
             widget.destroy()
+        self.rows.clear()
         
         placeholder = ctk.CTkLabel(
-            self.cards_container,
+            self.content_frame,
             text="👆 Выберите город на вкладке 'Погода'\nдля отображения прогноза",
             font=("Arial", 16),
             text_color="gray"
@@ -205,14 +208,15 @@ class Tab2:
                 )
     
     def display_forecast(self, forecast_data):
-        """Отображение прогноза в виде карточек (горизонтально)"""
+        """Отображение прогноза с карточками в столбик (максимум 4 в строке)"""
         # Очищаем контейнер
-        for widget in self.cards_container.winfo_children():
+        for widget in self.content_frame.winfo_children():
             widget.destroy()
+        self.rows.clear()
         
         if 'daily' not in forecast_data:
             error_label = ctk.CTkLabel(
-                self.cards_container,
+                self.content_frame,
                 text="❌ Нет данных для отображения",
                 font=("Arial", 14),
                 text_color="red"
@@ -228,138 +232,162 @@ class Tab2:
         wind_unit = "м/с" if self.settings_vars['wind_speed_unit'].get() == "ms" else "км/ч"
         precip_unit = "дюймы" if self.settings_vars['precipitation_unit'].get() == "inches" else "мм"
         
-        # --- ИЗМЕНЕНИЕ: Карточки располагаются горизонтально ---
-        # Создаем карточки для каждого дня и размещаем их горизонтально
-        for i in range(days):
-            # Дата
-            date_str = daily['time'][i]
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        # --- ИЗМЕНЕНИЕ: Создаем строки по 4 карточки без отступов между ними ---
+        cards_per_row = 4
+        num_rows = (days + cards_per_row - 1) // cards_per_row  # Округление вверх
+        
+        for row in range(num_rows):
+            # Создаем новую строку
+            row_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+            row_frame.pack(fill="x", pady=5)  # Минимальные отступы между строками
+            self.rows.append(row_frame)
             
-            # Форматируем дату
-            today = datetime.now().date()
-            if date_obj.date() == today:
-                day_name = "Сегодня"
-            elif date_obj.date() == today + timedelta(days=1):
-                day_name = "Завтра"
-            else:
-                # Название дня недели
-                day_name = self.get_weekday_name(date_obj.weekday())
+            # Определяем индексы для этой строки
+            start_idx = row * cards_per_row
+            end_idx = min(start_idx + cards_per_row, days)
             
-            date_formatted = f"{day_name}\n{date_obj.strftime('%d.%m')}"
+            # Создаем карточки для этой строки
+            for i in range(start_idx, end_idx):
+                # Дата
+                date_str = daily['time'][i]
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                
+                # Форматируем дату
+                today = datetime.now().date()
+                if date_obj.date() == today:
+                    day_name = "Сегодня"
+                elif date_obj.date() == today + timedelta(days=1):
+                    day_name = "Завтра"
+                else:
+                    # Название дня недели
+                    day_name = self.get_weekday_name(date_obj.weekday())
+                
+                date_formatted = f"{day_name}\n{date_obj.strftime('%d.%m')}"
+                
+                # Код погоды и описание
+                weather_code = daily['weathercode'][i]
+                weather_desc = self.weather_api.get_weather_description(weather_code)
+                weather_icon = self.weather_api.get_weather_icon(weather_code)
+                
+                # Температура
+                temp_max = daily['temperature_2m_max'][i]
+                temp_min = daily['temperature_2m_min'][i]
+                
+                # Осадки
+                precip = daily['precipitation_sum'][i] if i < len(daily['precipitation_sum']) else 0
+                precip_prob = daily['precipitation_probability_max'][i] if i < len(daily['precipitation_probability_max']) else 0
+                
+                # Ветер
+                wind_speed = daily['windspeed_10m_max'][i] if 'windspeed_10m_max' in daily and i < len(daily['windspeed_10m_max']) else 0
+                wind_dir = daily['winddirection_10m_dominant'][i] if 'winddirection_10m_dominant' in daily and i < len(daily['winddirection_10m_dominant']) else 0
+                wind_dir_text = self.weather_api.get_wind_direction_text(wind_dir) if wind_dir else ""
+                
+                # Создаем карточку
+                card = self.create_forecast_card(
+                    row_frame,
+                    date_formatted,
+                    weather_icon,
+                    weather_desc,
+                    temp_max,
+                    temp_min,
+                    precip,
+                    precip_prob,
+                    wind_speed,
+                    wind_dir_text,
+                    temp_unit,
+                    wind_unit,
+                    precip_unit
+                )
+                # Карточки располагаются горизонтально в строке с минимальными отступами
+                card.pack(side="left", padx=2, fill="both", expand=True)
             
-            # Код погоды и описание
-            weather_code = daily['weathercode'][i]
-            weather_desc = self.weather_api.get_weather_description(weather_code)
-            weather_icon = self.weather_api.get_weather_icon(weather_code)
-            
-            # Температура
-            temp_max = daily['temperature_2m_max'][i]
-            temp_min = daily['temperature_2m_min'][i]
-            
-            # Осадки
-            precip = daily['precipitation_sum'][i] if i < len(daily['precipitation_sum']) else 0
-            precip_prob = daily['precipitation_probability_max'][i] if i < len(daily['precipitation_probability_max']) else 0
-            
-            # Ветер
-            wind_speed = daily['windspeed_10m_max'][i] if 'windspeed_10m_max' in daily and i < len(daily['windspeed_10m_max']) else 0
-            wind_dir = daily['winddirection_10m_dominant'][i] if 'winddirection_10m_dominant' in daily and i < len(daily['winddirection_10m_dominant']) else 0
-            wind_dir_text = self.weather_api.get_wind_direction_text(wind_dir) if wind_dir else ""
-            
-            # Создаем карточку
-            card = self.create_forecast_card(
-                date_formatted,
-                weather_icon,
-                weather_desc,
-                temp_max,
-                temp_min,
-                precip,
-                precip_prob,
-                wind_speed,
-                wind_dir_text,
-                temp_unit,
-                wind_unit,
-                precip_unit
-            )
-            # --- ИЗМЕНЕНИЕ: Размещаем карточки горизонтально (слева направо) ---
-            card.pack(side="left", padx=5, pady=5, fill="y")
+            # Если в строке меньше 4 карточек, добавляем пустые фреймы для выравнивания
+            cards_in_row = end_idx - start_idx
+            if cards_in_row < cards_per_row:
+                for _ in range(cards_per_row - cards_in_row):
+                    spacer = ctk.CTkFrame(row_frame, fg_color="transparent")
+                    spacer.pack(side="left", padx=2, fill="both", expand=True)
     
-    def create_forecast_card(self, date, icon, description, temp_max, temp_min, 
+    def create_forecast_card(self, parent, date, icon, description, temp_max, temp_min, 
                             precip, precip_prob, wind_speed, wind_dir, 
                             temp_unit, wind_unit, precip_unit):
-        """Создание карточки прогноза на один день (компактный дизайн для горизонтального расположения)"""
-        card = ctk.CTkFrame(self.cards_container, corner_radius=8, width=150)
-        card.pack_propagate(False)  # Запрещаем изменение размера
+        """Создание карточки прогноза на один день с центрированной иконкой"""
+        card = ctk.CTkFrame(parent, corner_radius=8)
         
-        # Дата (теперь с переносом строки)
+        # Дата (жирным шрифтом)
         date_label = ctk.CTkLabel(
             card,
             text=date,
-            font=("Arial", 12, "bold"),
+            font=("Arial", 14, "bold"),
             justify="center"
         )
-        date_label.pack(pady=(8, 2))
+        date_label.pack(pady=(12, 8))
         
-        # Иконка погоды
+        # --- ИЗМЕНЕНИЕ: Центрирование иконки ---
+        # Создаем контейнер для иконки с центрированием
+        icon_frame = ctk.CTkFrame(card, fg_color="transparent")
+        icon_frame.pack(fill="x", pady=(0, 5))
+        
+        # Центрируем иконку с помощью expand=True
         icon_label = ctk.CTkLabel(
-            card,
+            icon_frame,
             text=icon,
-            font=("Arial", 32)
+            font=("Arial", 42)  # Увеличен размер иконки для лучшей видимости
         )
-        icon_label.pack()
+        icon_label.pack(expand=True)  # expand=True для центрирования
         
-        # Описание погоды (сокращенное)
-        short_desc = description[:10] + "..." if len(description) > 10 else description
+        # Описание погоды
         desc_label = ctk.CTkLabel(
             card,
-            text=short_desc,
-            font=("Arial", 10)
+            text=f"- {description}",
+            font=("Arial", 11),
+            wraplength=140,
+            justify="center"
         )
-        desc_label.pack()
+        desc_label.pack(pady=(0, 8))
         
-        # Температура
-        temp_label = ctk.CTkLabel(
+        # Температура (макс и мин отдельно)
+        temp_max_label = ctk.CTkLabel(
             card,
-            text=f"{temp_max}↑ / {temp_min}↓",
-            font=("Arial", 11, "bold")
+            text=f"Макс: {temp_max:.1f} {temp_unit}",
+            font=("Arial", 11)
         )
-        temp_label.pack(pady=(2, 0))
+        temp_max_label.pack(pady=(0, 2))
         
-        temp_unit_label = ctk.CTkLabel(
+        temp_min_label = ctk.CTkLabel(
             card,
-            text=temp_unit,
-            font=("Arial", 9)
+            text=f"Мин: {temp_min:.1f} {temp_unit}",
+            font=("Arial", 11)
         )
-        temp_unit_label.pack()
+        temp_min_label.pack(pady=(0, 8))
         
         # Разделитель
-        separator = ctk.CTkFrame(card, height=1, width=120, fg_color="gray")
+        separator = ctk.CTkFrame(card, height=1, width=130, fg_color="gray")
         separator.pack(pady=5)
         
         # Осадки
-        precip_text = f"💧 {precip} {precip_unit}"
+        precip_text = f"{precip:.1f} {precip_unit}"
         if precip_prob > 0:
-            precip_text += f"\n({precip_prob}%)"
+            precip_text += f" ({precip_prob}%)"
         
         precip_label = ctk.CTkLabel(
             card,
-            text=precip_text,
-            font=("Arial", 9),
-            justify="center"
+            text=f"💧 {precip_text}",
+            font=("Arial", 11)
         )
-        precip_label.pack()
+        precip_label.pack(pady=(5, 2))
         
         # Ветер
-        wind_text = f"💨 {wind_speed} {wind_unit}"
+        wind_text = f"{wind_speed:.1f} {wind_unit}"
         if wind_dir:
             wind_text += f" {wind_dir}"
         
         wind_label = ctk.CTkLabel(
             card,
-            text=wind_text,
-            font=("Arial", 9),
-            justify="center"
+            text=f"💨 {wind_text}",
+            font=("Arial", 11)
         )
-        wind_label.pack(pady=(0, 8))
+        wind_label.pack(pady=(2, 12))
         
         return card
     

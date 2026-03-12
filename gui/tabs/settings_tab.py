@@ -152,7 +152,7 @@ class SettingsTab:
         
         auto_save_check = ctk.CTkCheckBox(
             auto_save_frame,
-            text="☑ Автоматически сохранять данные в файл",
+            text="Автоматически сохранять данные в файл",
             variable=self.settings_vars['auto_save'],
             checkbox_width=20,
             checkbox_height=20
@@ -353,9 +353,29 @@ class SettingsTab:
         if theme == "dark":
             separator_color = "#404040"
             api_text_color = "#A0A0A0"
-        else:
+            # Обновляем текст в блоке "О программе"
+            if hasattr(self, 'about_frame'):
+                for child in self.about_frame.winfo_children():
+                    if isinstance(child, ctk.CTkLabel):
+                        if "v1.0" in child.cget("text") or "Погодный" in child.cget("text"):
+                            child.configure(text_color="white")
+                        elif "Open-Meteo" in child.cget("text"):
+                            child.configure(text_color=api_text_color)
+                        elif "©" in child.cget("text"):
+                            child.configure(text_color=api_text_color)
+        else:  # светлая тема
             separator_color = "#E0E0E0"
             api_text_color = "gray"
+            # Обновляем текст в блоке "О программе"
+            if hasattr(self, 'about_frame'):
+                for child in self.about_frame.winfo_children():
+                    if isinstance(child, ctk.CTkLabel):
+                        if "v1.0" in child.cget("text") or "Погодный" in child.cget("text"):
+                            child.configure(text_color="black")
+                        elif "Open-Meteo" in child.cget("text"):
+                            child.configure(text_color=api_text_color)
+                        elif "©" in child.cget("text"):
+                            child.configure(text_color=api_text_color)
         
         # Обновляем разделители
         for child in self.settings_frame.winfo_children():

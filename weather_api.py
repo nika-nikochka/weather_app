@@ -130,7 +130,155 @@ class WeatherAPI:
             print(f"❌ Ошибка получения прогноза: {str(e)}")
             return None
     
-    def save_weather_data(self, weather_data, city_name, country, auto_save=True):
+    def get_historical_data(self, city_info, date, years_back=50):
+        """
+        Получение исторических данных для указанной даты за последние N лет
+        
+        city_info - словарь с информацией о городе
+        date - дата в формате datetime или строка YYYY-MM-DD
+        years_back - количество лет для получения данных (максимум 50)
+        
+        Возвращает словарь с историческими данными за каждый год
+        """
+        try:
+            lat = city_info['latitude']
+            lon = city_info['longitude']
+            
+            # Преобразуем дату в объект datetime если передана строка
+            if isinstance(date, str):
+                target_date = datetime.strptime(date, '%Y-%m-%d')
+            else:
+                target_date = date
+            
+            # Ограничиваем количество лет
+            if years_back > 50:
+                years_back = 50
+            
+            historical_data = {
+                'city_info': {
+                    'name': city_info.get('name', ''),
+                    'country': city_info.get('country', 'Неизвестно'),
+                    'admin1': city_info.get('admin1', ''),
+                    'latitude': lat,
+                    'longitude': lon
+                },
+                'target_date': target_date.strftime('%Y-%m-%d'),
+                'years_back': years_back,
+                'historical_records': []
+            }
+            
+            current_year = datetime.now().year
+            month_day = target_date.strftime('-%m-%d')
+            
+            print(f"🔄 Запрос исторических данных за {years_back} лет для даты {target_date.strftime('%d.%m')}...")
+            
+            for year in range(current_year - years_back, current_year):
+                historical_date = f"{year}{month_day}"
+                
+                # Запрос исторических данных
+                historical_url = (f"https://archive-api.open-meteo.com/v1/archive"
+                                 f"?latitude={lat}&longitude={lon}"
+                                 f"&start_date={historical_date}"
+                                 f"&end_date={historical_date}"
+                                 f"&daily=temperature_2m_max,temperature_2m_min,"
+                                 f"precipitation_sum,weathercode,windspeed_10m_max"
+                                 f"&timezone=auto")
+                
+                try:
+                    hist_response = requests.get(historical_url, timeout=10)
+                    hist_response.raise_for_status()
+                    hist_data = hist_response.json()
+                    
+                    if 'daily' in hist_data and len(hist_data['daily']['time']) > 0:
+                        record = {
+                            'year': year,
+                            'date': historical_date,
+                            'temperature_max': hist_data['daily']['temperature_2m_max'][0],
+                            'temperature_min': hist_data['daily']['temperature_2m_min'][0],
+                            'precipitation': hist_data['daily']['precipitation_sum'][0],
+                            'weathercode': hist_data['daily']['weathercode'][0],
+                            'wind_speed': hist_data['daily']['windspeed_10m_max'][0],
+                            'weather_description': self.get_weather_description(hist_data['daily']['weathercode'][0]),
+                            'weather_icon': self.get_weather_icon(hist_data['daily']['weathercode'][0])
+                        }
+                        historical_data['historical_records'].append(record)
+                        
+                except Exception as e:
+                    print(f"⚠️ Не удалось получить данные за {year}: {str(e)}")
+                    continue
+            
+            # Сортируем записи по году
+            historical_data['historical_records'].sort(key=lambda x: x['year'])
+            
+            # Добавляем статистику
+            if historical_data['historical_records']:
+                temps_max = [r['temperature_max'] for r in historical_data['historical_records']]
+                temps_min = [r['temperature_min'] for r in historical_data['historical_records']]
+                precip = [r['precipitation'] for r in historical_data['historical_records']]
+                
+                historical_data['statistics'] = {
+                    'max_temperature_absolute': max(temps_max),
+                    'min_temperature_absolute': min(temps_min),
+                    'avg_temperature_max': round(sum(temps_max) / len(temps_max), 1),
+                    'avg_temperature_min': round(sum(temps_min) / len(temps_min), 1),
+                    'avg_precipitation': round(sum(precip) / len(precip), 1),
+                    'years_with_data': len(historical_data['historical_records'])
+                }
+            
+            print(f"✅ Получены исторические данные за {len(historical_data['historical_records'])} лет")
+            return historical_data
+            
+        except requests.exceptions.Timeout:
+            print("❌ Превышено время ожидания при получении исторических данных")
+            return None
+        except requests.exceptions.ConnectionError:
+            print("❌ Ошибка подключения к интернету")
+            return None
+        except Exception as e:
+            print(f"❌ Ошибка получения исторических данных: {str(e)}")
+            return None
+    
+    def get_complete_weather_data(self, city_info, forecast_days=7, get_history=True, history_years=50):
+        """
+        Получение полных данных: текущая погода + прогноз + исторические данные
+        """
+        complete_data = {
+            'city_info': {
+                'name': city_info.get('name', ''),
+                'country': city_info.get('country', 'Неизвестно'),
+                'admin1': city_info.get('admin1', ''),
+                'latitude': city_info['latitude'],
+                'longitude': city_info['longitude']
+            },
+            'timestamp': datetime.now().isoformat(),
+            'current_weather': None,
+            'forecast': None,
+            'historical_data': None
+        }
+        
+        # Получаем текущую погоду
+        weather_data = self.get_weather(city_info)
+        if weather_data and 'current_weather' in weather_data:
+            complete_data['current_weather'] = weather_data['current_weather']
+        
+        # Получаем прогноз
+        forecast_data = self.get_forecast(city_info, forecast_days)
+        if forecast_data and 'daily' in forecast_data:
+            complete_data['forecast'] = {
+                'daily': forecast_data['daily'],
+                'forecast_days': forecast_days
+            }
+        
+        # Получаем исторические данные для сегодняшней даты
+        if get_history:
+            today = datetime.now()
+            historical_data = self.get_historical_data(city_info, today, history_years)
+            if historical_data:
+                complete_data['historical_data'] = historical_data
+        
+        return complete_data
+    
+    def save_weather_data(self, weather_data, city_name, country, data_type="complete", auto_save=True):
         """Сохранение данных в файл"""
         if not auto_save:
             return None
@@ -143,9 +291,6 @@ class WeatherAPI:
             # Очищаем имя файла от недопустимых символов
             clean_city = "".join(c for c in city_name if c.isalnum() or c in ' -_').rstrip()
             clean_country = "".join(c for c in country if c.isalnum() or c in ' -_').rstrip()
-            
-            # Определяем тип данных (текущая погода или прогноз)
-            data_type = "forecast" if "daily" in weather_data else "current"
             
             filename = f"weather_data/{clean_city}_{clean_country}_{data_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(filename, 'w', encoding='utf-8') as f:
