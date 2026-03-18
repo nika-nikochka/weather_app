@@ -20,6 +20,9 @@ class Tab2:
         # Переменные для периода прогноза
         self.forecast_days = ctk.IntVar(value=7)  # 7 или 14 дней
         
+        # Устанавливаем прозрачный фон родительского фрейма
+        self.parent.configure(fg_color="transparent")
+        
         self.setup_ui()
         
         # Отслеживаем изменение темы
@@ -27,12 +30,20 @@ class Tab2:
     
     def setup_ui(self):
         """Создание интерфейса вкладки"""
-        # Основной контейнер с большими отступами ТОЛЬКО ПО КРАЯМ вкладки
-        self.main_frame = ctk.CTkFrame(self.parent, fg_color="transparent")
-        self.main_frame.pack(fill="both", expand=True, padx=50, pady=30)  # Увеличенные отступы только по краям
+        # --- ИЗМЕНЕНИЕ: Создаем прокручиваемую область для всего содержимого ---
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.parent,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Контейнер для всего содержимого внутри прокрутки
+        self.content_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+        self.content_frame.pack(fill="both", expand=True)
         
         # Верхняя панель с информацией о городе и переключателем дней
-        self.top_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
+        self.top_frame = ctk.CTkFrame(self.content_frame, corner_radius=10)
         self.top_frame.pack(fill="x", pady=(0, 20))
         
         # Информация о городе
@@ -84,25 +95,16 @@ class Tab2:
         )
         self.update_button.pack(pady=(0, 15))
         
-        # --- ИЗМЕНЕНИЕ: Вертикальный скроллинг БЕЗ внутренних отступов ---
-        # Создаем фрейм с вертикальной прокруткой
-        self.scroll_frame = ctk.CTkScrollableFrame(
-            self.main_frame, 
-            corner_radius=10,
-            orientation="vertical",
-        )
-        self.scroll_frame.pack(fill="both", expand=True)
-        
-        # Внутренний контейнер для карточек (без отступов, чтобы поля были только по краям вкладки)
-        self.content_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.content_frame.pack(fill="both", expand=True)  # Убраны padx и pady
+        # --- ИЗМЕНЕНИЕ: Контейнер для карточек прогноза (без собственной прокрутки) ---
+        self.cards_container = ctk.CTkFrame(self.content_frame, fg_color="transparent")
+        self.cards_container.pack(fill="both", expand=True)
         
         # Здесь будут создаваться строки с карточками динамически
         self.rows = []  # Список для хранения строк
         
         # Статус
         self.status_label = ctk.CTkLabel(
-            self.main_frame,
+            self.content_frame,
             text="",
             font=("Arial", 12)
         )
@@ -114,12 +116,12 @@ class Tab2:
     def show_placeholder(self):
         """Показывает заглушку, когда город не выбран"""
         # Очищаем контейнер
-        for widget in self.content_frame.winfo_children():
+        for widget in self.cards_container.winfo_children():
             widget.destroy()
         self.rows.clear()
         
         placeholder = ctk.CTkLabel(
-            self.content_frame,
+            self.cards_container,
             text="👆 Выберите город на вкладке 'Погода'\nдля отображения прогноза",
             font=("Arial", 16),
             text_color="gray"
@@ -210,13 +212,13 @@ class Tab2:
     def display_forecast(self, forecast_data):
         """Отображение прогноза с карточками в столбик (максимум 4 в строке)"""
         # Очищаем контейнер
-        for widget in self.content_frame.winfo_children():
+        for widget in self.cards_container.winfo_children():
             widget.destroy()
         self.rows.clear()
         
         if 'daily' not in forecast_data:
             error_label = ctk.CTkLabel(
-                self.content_frame,
+                self.cards_container,
                 text="❌ Нет данных для отображения",
                 font=("Arial", 14),
                 text_color="red"
@@ -232,14 +234,14 @@ class Tab2:
         wind_unit = "м/с" if self.settings_vars['wind_speed_unit'].get() == "ms" else "км/ч"
         precip_unit = "дюймы" if self.settings_vars['precipitation_unit'].get() == "inches" else "мм"
         
-        # --- ИЗМЕНЕНИЕ: Создаем строки по 4 карточки без отступов между ними ---
+        # Создаем строки по 4 карточки
         cards_per_row = 4
         num_rows = (days + cards_per_row - 1) // cards_per_row  # Округление вверх
         
         for row in range(num_rows):
             # Создаем новую строку
-            row_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-            row_frame.pack(fill="x", pady=5)  # Минимальные отступы между строками
+            row_frame = ctk.CTkFrame(self.cards_container, fg_color="transparent")
+            row_frame.pack(fill="x", pady=5)
             self.rows.append(row_frame)
             
             # Определяем индексы для этой строки
@@ -298,7 +300,6 @@ class Tab2:
                     wind_unit,
                     precip_unit
                 )
-                # Карточки располагаются горизонтально в строке с минимальными отступами
                 card.pack(side="left", padx=2, fill="both", expand=True)
             
             # Если в строке меньше 4 карточек, добавляем пустые фреймы для выравнивания
@@ -311,7 +312,7 @@ class Tab2:
     def create_forecast_card(self, parent, date, icon, description, temp_max, temp_min, 
                             precip, precip_prob, wind_speed, wind_dir, 
                             temp_unit, wind_unit, precip_unit):
-        """Создание карточки прогноза на один день с центрированной иконкой"""
+        """Создание карточки прогноза на один день"""
         card = ctk.CTkFrame(parent, corner_radius=8)
         
         # Дата (жирным шрифтом)
@@ -323,18 +324,16 @@ class Tab2:
         )
         date_label.pack(pady=(12, 8))
         
-        # --- ИЗМЕНЕНИЕ: Центрирование иконки ---
-        # Создаем контейнер для иконки с центрированием
+        # Контейнер для иконки с центрированием
         icon_frame = ctk.CTkFrame(card, fg_color="transparent")
         icon_frame.pack(fill="x", pady=(0, 5))
         
-        # Центрируем иконку с помощью expand=True
         icon_label = ctk.CTkLabel(
             icon_frame,
             text=icon,
-            font=("Arial", 42)  # Увеличен размер иконки для лучшей видимости
+            font=("Arial", 42)
         )
-        icon_label.pack(expand=True)  # expand=True для центрирования
+        icon_label.pack(expand=True)
         
         # Описание погоды
         desc_label = ctk.CTkLabel(

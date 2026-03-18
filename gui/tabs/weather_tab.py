@@ -48,9 +48,24 @@ class WeatherTab:
         self.setup_ui()
         
     def setup_ui(self):
+        # Устанавливаем прозрачный фон родительского фрейма
+        self.parent.configure(fg_color="transparent")
+        
+        # --- ИЗМЕНЕНИЕ: Создаем прокручиваемую область для всего содержимого ---
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.parent,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.scroll_frame.pack(fill="both", expand=True)
+        
+        # Контейнер для всего содержимого внутри прокрутки
+        self.content_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+        self.content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
         # Верхняя панель с поиском
-        search_frame = ctk.CTkFrame(self.parent)
-        search_frame.pack(fill="x", padx=20, pady=(20, 0))
+        search_frame = ctk.CTkFrame(self.content_frame)
+        search_frame.pack(fill="x", padx=10, pady=(10, 0))
         
         # Контейнер для поля ввода и выпадающего списка
         entry_container = ctk.CTkFrame(search_frame, fg_color="transparent")
@@ -88,8 +103,8 @@ class WeatherTab:
         self.search_button.pack(side="right", padx=(5, 10), pady=10)
         
         # Фрейм для отображения погоды
-        self.weather_frame = ctk.CTkFrame(self.parent)
-        self.weather_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        self.weather_frame = ctk.CTkFrame(self.content_frame)
+        self.weather_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Информация о городе
         self.city_label = ctk.CTkLabel(
@@ -109,7 +124,7 @@ class WeatherTab:
         
         # Основной контейнер для всех параметров погоды
         main_params_frame = ctk.CTkFrame(self.weather_frame, fg_color="transparent")
-        main_params_frame.pack(fill="x", padx=40, pady=10)
+        main_params_frame.pack(fill="x", padx=20, pady=10)
         
         # Первая строка параметров (ветер, ощущается как, влажность)
         row1_frame = ctk.CTkFrame(main_params_frame, fg_color="transparent")
@@ -117,7 +132,7 @@ class WeatherTab:
         
         # Ветер
         wind_frame = ctk.CTkFrame(row1_frame, fg_color="transparent")
-        wind_frame.pack(side="left", expand=True, fill="x", padx=10)
+        wind_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         wind_title = ctk.CTkLabel(
             wind_frame,
@@ -135,7 +150,7 @@ class WeatherTab:
         
         # Ощущается как
         feels_frame = ctk.CTkFrame(row1_frame, fg_color="transparent")
-        feels_frame.pack(side="left", expand=True, fill="x", padx=10)
+        feels_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         feels_title = ctk.CTkLabel(
             feels_frame,
@@ -153,7 +168,7 @@ class WeatherTab:
         
         # Влажность
         humidity_frame = ctk.CTkFrame(row1_frame, fg_color="transparent")
-        humidity_frame.pack(side="left", expand=True, fill="x", padx=10)
+        humidity_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         humidity_title = ctk.CTkLabel(
             humidity_frame,
@@ -175,7 +190,7 @@ class WeatherTab:
         
         # Направление ветра
         direction_frame = ctk.CTkFrame(row2_frame, fg_color="transparent")
-        direction_frame.pack(side="left", expand=True, fill="x", padx=10)
+        direction_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         direction_title = ctk.CTkLabel(
             direction_frame,
@@ -193,7 +208,7 @@ class WeatherTab:
         
         # Восход
         sunrise_frame = ctk.CTkFrame(row2_frame, fg_color="transparent")
-        sunrise_frame.pack(side="left", expand=True, fill="x", padx=10)
+        sunrise_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         sunrise_title = ctk.CTkLabel(
             sunrise_frame,
@@ -211,7 +226,7 @@ class WeatherTab:
         
         # Закат
         sunset_frame = ctk.CTkFrame(row2_frame, fg_color="transparent")
-        sunset_frame.pack(side="left", expand=True, fill="x", padx=10)
+        sunset_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         sunset_title = ctk.CTkLabel(
             sunset_frame,
@@ -229,7 +244,7 @@ class WeatherTab:
         
         # Давление
         pressure_frame = ctk.CTkFrame(row2_frame, fg_color="transparent")
-        pressure_frame.pack(side="left", expand=True, fill="x", padx=10)
+        pressure_frame.pack(side="left", expand=True, fill="x", padx=5)
         
         pressure_title = ctk.CTkLabel(
             pressure_frame,
@@ -261,7 +276,7 @@ class WeatherTab:
             hover_color="#2C5282",
             text_color="white",
             corner_radius=8,
-            state="disabled"  # Изначально неактивна
+            state="disabled"
         )
         self.clothing_button.pack(pady=5)
         
@@ -276,11 +291,11 @@ class WeatherTab:
         
         # Статус загрузки
         self.status_label = ctk.CTkLabel(
-            self.parent,
+            self.content_frame,
             text="",
             font=("Arial", 12),
         )
-        self.status_label.pack(pady=10)
+        self.status_label.pack(pady=(0, 10))
     
     def show_clothing_recommendation_window(self):
         """Показывает отдельное окно с рекомендациями по одежде"""

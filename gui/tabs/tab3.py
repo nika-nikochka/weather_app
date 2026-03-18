@@ -24,6 +24,9 @@ class Tab3:
         # Переменная для количества лет истории
         self.history_years = ctk.IntVar(value=10)  # 10, 25 или 50 лет
         
+        # Устанавливаем прозрачный фон родительского фрейма
+        self.parent.configure(fg_color="transparent")
+        
         self.setup_ui()
         
         # Отслеживаем изменение темы
@@ -32,12 +35,20 @@ class Tab3:
     
     def setup_ui(self):
         """Создание интерфейса вкладки"""
-        # Основной контейнер
-        self.main_frame = ctk.CTkFrame(self.parent, fg_color="transparent")
-        self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- ИЗМЕНЕНИЕ: Создаем прокручиваемую область для всего содержимого ---
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.parent,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Контейнер для всего содержимого внутри прокрутки
+        self.content_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+        self.content_container.pack(fill="both", expand=True)
         
         # Верхняя панель с информацией о городе и настройками
-        self.top_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
+        self.top_frame = ctk.CTkFrame(self.content_container, corner_radius=10)
         self.top_frame.pack(fill="x", pady=(0, 10))
         
         # Информация о городе
@@ -154,17 +165,12 @@ class Tab3:
         )
         self.update_button.pack(pady=(10, 15))
         
-        # Основная область с прокруткой для отображения данных
-        self.scroll_frame = ctk.CTkScrollableFrame(self.main_frame, corner_radius=10)
-        self.scroll_frame.pack(fill="both", expand=True)
-        
-        # Контейнер для содержимого
-        self.content_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.content_container.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- ИЗМЕНЕНИЕ: Убираем встроенную прокрутку из records_container
+        # и делаем её частью общего скролла
         
         # Статус
         self.status_label = ctk.CTkLabel(
-            self.main_frame,
+            self.content_container,
             text="",
             font=("Arial", 12)
         )
@@ -177,7 +183,8 @@ class Tab3:
         """Показывает заглушку, когда город не выбран"""
         # Очищаем контейнер
         for widget in self.content_container.winfo_children():
-            widget.destroy()
+            if widget not in [self.top_frame, self.status_label]:
+                widget.destroy()
         
         placeholder = ctk.CTkLabel(
             self.content_container,
@@ -320,9 +327,10 @@ class Tab3:
     
     def display_historical_data(self, historical_data):
         """Отображение исторических данных"""
-        # Очищаем контейнер
+        # Очищаем контейнер от предыдущих данных (кроме top_frame и status_label)
         for widget in self.content_container.winfo_children():
-            widget.destroy()
+            if widget not in [self.top_frame, self.status_label]:
+                widget.destroy()
         
         if not historical_data or 'historical_records' not in historical_data:
             self.show_no_data()
@@ -347,7 +355,7 @@ class Tab3:
         if 'statistics' in historical_data:
             stats = historical_data['statistics']
             stats_frame = ctk.CTkFrame(self.content_container, corner_radius=10)
-            stats_frame.pack(fill="x", padx=20, pady=10)
+            stats_frame.pack(fill="x", padx=10, pady=10)
             
             stats_title = ctk.CTkLabel(
                 stats_frame,
@@ -396,7 +404,7 @@ class Tab3:
         
         # Заголовок таблицы
         table_header = ctk.CTkFrame(self.content_container, corner_radius=5, fg_color="#2B2B2B")
-        table_header.pack(fill="x", padx=20, pady=(20, 0))
+        table_header.pack(fill="x", padx=10, pady=(20, 0))
         
         # Колонки
         col_year = ctk.CTkLabel(table_header, text="Год", width=80, font=("Arial", 12, "bold"))
@@ -414,13 +422,10 @@ class Tab3:
         col_precip = ctk.CTkLabel(table_header, text="Осадки, мм", width=100, font=("Arial", 12, "bold"))
         col_precip.pack(side="left", padx=5)
         
-        # Контейнер для записей с прокруткой
-        records_container = ctk.CTkScrollableFrame(
-            self.content_container, 
-            height=300,
-            corner_radius=5
-        )
-        records_container.pack(fill="both", expand=True, padx=20, pady=5)
+        # --- ИЗМЕНЕНИЕ: Убираем прокрутку из records_container, 
+        # теперь прокрутка обеспечивается основным scroll_frame
+        records_container = ctk.CTkFrame(self.content_container, corner_radius=5)
+        records_container.pack(fill="x", padx=10, pady=5)
         
         # Добавляем записи
         for i, record in enumerate(records):
@@ -491,7 +496,8 @@ class Tab3:
     def show_no_data(self):
         """Показывает сообщение об отсутствии данных"""
         for widget in self.content_container.winfo_children():
-            widget.destroy()
+            if widget not in [self.top_frame, self.status_label]:
+                widget.destroy()
         
         no_data_label = ctk.CTkLabel(
             self.content_container,
