@@ -66,8 +66,13 @@ class WeatherApp(ctk.CTk):
         # Запускаем обновление времени
         self.update_time()
         
-        # Привязываем Enter к поиску
-        self.weather_tab.city_entry.bind('<Return>', lambda event: self.search_weather())
+        # Привязываем Enter к поиску (будет выполнено после создания weather_tab)
+        self.after(100, self.bind_enter_key)
+    
+    def bind_enter_key(self):
+        """Привязка клавиши Enter к поиску"""
+        if hasattr(self, 'weather_tab') and self.weather_tab.city_entry:
+            self.weather_tab.city_entry.bind('<Return>', lambda event: self.search_weather())
     
     def setup_main_container(self):
         """Создание главного контейнера"""
@@ -195,9 +200,9 @@ class WeatherApp(ctk.CTk):
             if current_tab == tab_names[i]:
                 # Подсвечиваем активную вкладку
                 if self.theme.get() == "light":
-                    icon_label.configure(text_color="#3EA5E5")  # Красный для светлой темы
+                    icon_label.configure(text_color="#E53E3E")  # Красный для светлой темы
                 else:
-                    icon_label.configure(text_color="#6BBAFF")  # Светло-красный для темной
+                    icon_label.configure(text_color="#FF6B6B")  # Светло-красный для темной
             else:
                 # Возвращаем обычный цвет
                 icon_label.configure(text_color="white" if self.theme.get() == "dark" else "black")
@@ -243,11 +248,14 @@ class WeatherApp(ctk.CTk):
         if hasattr(self, 'weather_tab'):
             self.weather_tab.update_theme_colors(self.theme.get())
         if hasattr(self, 'settings_tab'):
-            self.settings_tab.update_theme_colors(self.theme.get())
+            if hasattr(self.settings_tab, 'update_theme_colors'):
+                self.settings_tab.update_theme_colors(self.theme.get())
         if hasattr(self, 'tab2'):
-            self.tab2.on_theme_changed()
+            if hasattr(self.tab2, 'on_theme_changed'):
+                self.tab2.on_theme_changed()
         if hasattr(self, 'tab3'):
-            self.tab3.on_theme_changed()
+            if hasattr(self.tab3, 'on_theme_changed'):
+                self.tab3.on_theme_changed()
         
         # Обновляем подсветку активной вкладки
         self.update_active_tab_highlight()
@@ -340,6 +348,9 @@ class WeatherApp(ctk.CTk):
     
     def search_weather(self):
         """Поиск погоды"""
+        if not hasattr(self, 'weather_tab'):
+            return
+            
         city_name = self.weather_tab.get_city_name()
         
         if not city_name:
