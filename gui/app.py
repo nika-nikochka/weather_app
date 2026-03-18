@@ -117,11 +117,12 @@ class WeatherApp(ctk.CTk):
         # Создаем иконки для вкладок
         self.tab_icons = []
         icon_data = [
-            ("🌤", "Погода"),
-            ("📊", "Прогноз"),
-            ("📈", "История"),
+            ("🌤", "Текущая погода"),
+            ("📊", "Прогноз на несколько дней"),
+            ("📈", "История погоды"),
             ("⚙️", "Настройки")
         ]
+
         
         for i, (icon, tooltip) in enumerate(icon_data):
             icon_frame = ctk.CTkFrame(self.right_header, fg_color="transparent", width=50, height=50)
@@ -151,56 +152,61 @@ class WeatherApp(ctk.CTk):
         """Показывает всплывающую подсказку сразу"""
         # Скрываем предыдущую подсказку
         self.hide_tooltip()
-        
+
         # Получаем координаты виджета
         widget = event.widget
-        x = widget.winfo_rootx() - self.winfo_rootx() + 25
-        y = widget.winfo_rooty() - self.winfo_rooty() - 30
-        
-        # Создаем подсказку
+        #x = self.winfo_width() - 1000
+        x = (event.x_root - self.winfo_rootx() + 10) / 2 - 36
+        #x = (self.winfo_width() * 0.4) #- (widget.winfo_x() + widget.winfo_width()) * 10
+        y = widget.winfo_y() + widget.winfo_height() + 8
+
+        # Создаём подсказку
         self.tooltip_label = ctk.CTkLabel(
             self,
             text=text,
-            font=("Arial", 11, "bold"),
+            font=("Arial", 12, "bold"),
             fg_color="#2B2B2B" if self.theme.get() == "dark" else "#E0E0E0",
             text_color="white" if self.theme.get() == "dark" else "black",
-            corner_radius=5,
-            padx=10,
-            pady=5
+            corner_radius=8,
+            padx=12,
+            pady=6
         )
         self.tooltip_label.place(x=x, y=y)
-        
+
         # Автоматически скрываем через 3 секунды
         self.tooltip_timer = self.after(3000, self.hide_tooltip)
+
     
     def hide_tooltip(self):
         """Скрывает всплывающую подсказку"""
         if self.tooltip_timer:
             self.after_cancel(self.tooltip_timer)
             self.tooltip_timer = None
-        
+
         if self.tooltip_label:
             self.tooltip_label.destroy()
             self.tooltip_label = None
+
     
     def update_active_tab_highlight(self):
         """Подсвечивает активную вкладку"""
         if not hasattr(self, 'tab_icons'):
             return
-            
+
         current_tab = self.tab_view.get()
         tab_names = ["🌤 Погода", "📊 Вкладка 2", "📈 Вкладка 3", "⚙️ Настройки"]
-        
+
         for i, icon_label in enumerate(self.tab_icons):
             if current_tab == tab_names[i]:
                 # Подсвечиваем активную вкладку
                 if self.theme.get() == "light":
-                    icon_label.configure(text_color="#3EA5E5")  # Красный для светлой темы
+                    icon_label.configure(text_color="#3EA5E5")
                 else:
-                    icon_label.configure(text_color="#6BBAFF")  # Светло-красный для темной
+                    icon_label.configure(text_color="#6BBAFF")
             else:
                 # Возвращаем обычный цвет
                 icon_label.configure(text_color="white" if self.theme.get() == "dark" else "black")
+
     
     def switch_to_tab(self, tab_index):
         """Переключение на указанную вкладку"""
