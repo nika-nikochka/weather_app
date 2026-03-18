@@ -42,15 +42,21 @@ class WeatherAPI:
     
     def get_weather(self, city_info):
         """
-        Получение данных о погоде для выбранного города
+        Получение данных о погоде для выбранного города с дополнительными параметрами
         city_info - словарь с информацией о городе (latitude, longitude, name, country и т.д.)
         """
         try:
             lat = city_info['latitude']
             lon = city_info['longitude']
             
-            # Запрос погоды
-            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&hourly=temperature_2m&forecast_days=7&timezone=auto"
+            # Запрос погоды с дополнительными параметрами
+            weather_url = (f"https://api.open-meteo.com/v1/forecast"
+                          f"?latitude={lat}&longitude={lon}"
+                          f"&current_weather=true"
+                          f"&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,pressure_msl,windspeed_10m,winddirection_10m"
+                          f"&daily=sunrise,sunset,weathercode,temperature_2m_max,temperature_2m_min"
+                          f"&forecast_days=7"
+                          f"&timezone=auto")
             
             print("🔄 Запрос данных о погоде...")
             weather_response = requests.get(weather_url, timeout=10)
@@ -66,6 +72,10 @@ class WeatherAPI:
                 'longitude': lon
             }
             
+            # Добавляем дополнительные параметры из почасовых данных
+            if 'hourly' in weather_data and 'current_weather' in weather_data:
+                self._enrich_current_weather(weather_data)
+            
             return weather_data
             
         except requests.exceptions.Timeout:
@@ -77,6 +87,54 @@ class WeatherAPI:
         except Exception as e:
             print(f"❌ Ошибка получения погоды: {str(e)}")
             return None
+    
+    def _enrich_current_weather(self, weather_data):
+        """
+        Обогащает текущие данные погоды дополнительными параметрами из почасовых данных
+        """
+        try:
+            current = weather_data['current_weather']
+            hourly = weather_data['hourly']
+            
+            # Находим ближайший час к текущему времени
+            current_time = current['time']
+            
+            if 'time' in hourly:
+                for i, time in enumerate(hourly['time']):
+                    if time >= current_time:
+                        # Добавляем влажность
+                        if 'relative_humidity_2m' in hourly and i < len(hourly['relative_humidity_2m']):
+                            weather_data['current_weather']['relative_humidity'] = hourly['relative_humidity_2m'][i]
+                        
+                        # Добавляем ощущаемую температуру
+                        if 'apparent_temperature' in hourly and i < len(hourly['apparent_temperature']):
+                            weather_data['current_weather']['apparent_temperature'] = hourly['apparent_temperature'][i]
+                        
+                        # Добавляем давление
+                        if 'pressure_msl' in hourly and i < len(hourly['pressure_msl']):
+                            weather_data['current_weather']['pressure'] = hourly['pressure_msl'][i]
+                        
+                        # Добавляем дополнительную информацию о ветре для сверки
+                        if 'windspeed_10m' in hourly and i < len(hourly['windspeed_10m']):
+                            weather_data['current_weather']['hourly_windspeed'] = hourly['windspeed_10m'][i]
+                        
+                        if 'winddirection_10m' in hourly and i < len(hourly['winddirection_10m']):
+                            weather_data['current_weather']['hourly_winddirection'] = hourly['winddirection_10m'][i]
+                        
+                        break
+            
+            # Добавляем информацию о восходе и закате
+            if 'daily' in weather_data:
+                daily = weather_data['daily']
+                if 'sunrise' in daily and daily['sunrise']:
+                    weather_data['sunrise'] = daily['sunrise'][0]
+                if 'sunset' in daily and daily['sunset']:
+                    weather_data['sunset'] = daily['sunset'][0]
+                if 'weathercode' in daily and daily['weathercode']:
+                    weather_data['daily_weathercode'] = daily['weathercode'][0]
+                    
+        except Exception as e:
+            print(f"⚠️ Ошибка при обогащении данных: {e}")
     
     def get_forecast(self, city_info, days=7):
         """
@@ -92,12 +150,14 @@ class WeatherAPI:
             if days > 16:
                 days = 16
             
-            # Запрос прогноза с ежедневными данными
+            # Запрос прогноза с ежедневными данными и дополнительными параметрами
             forecast_url = (f"https://api.open-meteo.com/v1/forecast"
                            f"?latitude={lat}&longitude={lon}"
                            f"&daily=weathercode,temperature_2m_max,temperature_2m_min,"
+                           f"apparent_temperature_max,apparent_temperature_min,"
                            f"precipitation_sum,precipitation_probability_max,"
-                           f"windspeed_10m_max,winddirection_10m_dominant"
+                           f"windspeed_10m_max,winddirection_10m_dominant,"
+                           f"sunrise,sunset,uv_index_max"
                            f"&forecast_days={days}"
                            f"&timezone=auto")
             
@@ -175,13 +235,15 @@ class WeatherAPI:
             for year in range(current_year - years_back, current_year):
                 historical_date = f"{year}{month_day}"
                 
-                # Запрос исторических данных
+                # Запрос исторических данных с дополнительными параметрами
                 historical_url = (f"https://archive-api.open-meteo.com/v1/archive"
                                  f"?latitude={lat}&longitude={lon}"
                                  f"&start_date={historical_date}"
                                  f"&end_date={historical_date}"
                                  f"&daily=temperature_2m_max,temperature_2m_min,"
-                                 f"precipitation_sum,weathercode,windspeed_10m_max"
+                                 f"apparent_temperature_max,apparent_temperature_min,"
+                                 f"precipitation_sum,weathercode,windspeed_10m_max,"
+                                 f"relative_humidity_2m_max,pressure_msl_mean"
                                  f"&timezone=auto")
                 
                 try:
@@ -195,9 +257,13 @@ class WeatherAPI:
                             'date': historical_date,
                             'temperature_max': hist_data['daily']['temperature_2m_max'][0],
                             'temperature_min': hist_data['daily']['temperature_2m_min'][0],
+                            'apparent_temperature_max': hist_data['daily'].get('apparent_temperature_max', [None])[0],
+                            'apparent_temperature_min': hist_data['daily'].get('apparent_temperature_min', [None])[0],
                             'precipitation': hist_data['daily']['precipitation_sum'][0],
                             'weathercode': hist_data['daily']['weathercode'][0],
                             'wind_speed': hist_data['daily']['windspeed_10m_max'][0],
+                            'humidity': hist_data['daily'].get('relative_humidity_2m_max', [None])[0],
+                            'pressure': hist_data['daily'].get('pressure_msl_mean', [None])[0],
                             'weather_description': self.get_weather_description(hist_data['daily']['weathercode'][0]),
                             'weather_icon': self.get_weather_icon(hist_data['daily']['weathercode'][0])
                         }
@@ -212,16 +278,16 @@ class WeatherAPI:
             
             # Добавляем статистику
             if historical_data['historical_records']:
-                temps_max = [r['temperature_max'] for r in historical_data['historical_records']]
-                temps_min = [r['temperature_min'] for r in historical_data['historical_records']]
-                precip = [r['precipitation'] for r in historical_data['historical_records']]
+                temps_max = [r['temperature_max'] for r in historical_data['historical_records'] if r['temperature_max'] is not None]
+                temps_min = [r['temperature_min'] for r in historical_data['historical_records'] if r['temperature_min'] is not None]
+                precip = [r['precipitation'] for r in historical_data['historical_records'] if r['precipitation'] is not None]
                 
                 historical_data['statistics'] = {
-                    'max_temperature_absolute': max(temps_max),
-                    'min_temperature_absolute': min(temps_min),
-                    'avg_temperature_max': round(sum(temps_max) / len(temps_max), 1),
-                    'avg_temperature_min': round(sum(temps_min) / len(temps_min), 1),
-                    'avg_precipitation': round(sum(precip) / len(precip), 1),
+                    'max_temperature_absolute': max(temps_max) if temps_max else None,
+                    'min_temperature_absolute': min(temps_min) if temps_min else None,
+                    'avg_temperature_max': round(sum(temps_max) / len(temps_max), 1) if temps_max else None,
+                    'avg_temperature_min': round(sum(temps_min) / len(temps_min), 1) if temps_min else None,
+                    'avg_precipitation': round(sum(precip) / len(precip), 1) if precip else None,
                     'years_with_data': len(historical_data['historical_records'])
                 }
             
@@ -258,8 +324,12 @@ class WeatherAPI:
         
         # Получаем текущую погоду
         weather_data = self.get_weather(city_info)
-        if weather_data and 'current_weather' in weather_data:
-            complete_data['current_weather'] = weather_data['current_weather']
+        if weather_data:
+            complete_data['current_weather'] = weather_data.get('current_weather', {})
+            if 'sunrise' in weather_data:
+                complete_data['sunrise'] = weather_data['sunrise']
+            if 'sunset' in weather_data:
+                complete_data['sunset'] = weather_data['sunset']
         
         # Получаем прогноз
         forecast_data = self.get_forecast(city_info, forecast_days)
@@ -405,3 +475,10 @@ class WeatherAPI:
         if to_unit == 'inches':
             return round(precip_mm / 25.4, 2)
         return round(precip_mm, 1)
+    
+    @staticmethod
+    def format_time(time_str):
+        """Форматирование времени для отображения (только часы:минуты)"""
+        if time_str and len(time_str) >= 16:
+            return time_str[11:16]
+        return time_str
