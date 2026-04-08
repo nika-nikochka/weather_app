@@ -558,7 +558,7 @@ class WeatherTab:
         # Получаем тип погоды
         weather_type, weather_icon = self.get_weather_conditions(weathercode) if weathercode is not None else ("unknown", "🌡️")
         
-        recommendation = f"🏙️ Сейчас {time_of_day}\n"
+        recommendation = f"🌅 Сейчас {time_of_day}\n"
         if weathercode is not None:
             recommendation += f"{weather_icon} Погода: {self.weather_api.get_weather_description(weathercode)}\n\n"
         else:
@@ -613,7 +613,7 @@ class WeatherTab:
             recommendation += "💡 Не забудьте шапку и перчатки!"
             
         elif temp <= 5:
-            recommendation += "🌬️ ПРОХЛАДНО\n\n"
+            recommendation += "💨 ПРОХЛАДНО\n\n"
             recommendation += "ОДЕЖДА:\n"
             recommendation += "• Кофта/свитер\n"
             recommendation += "• Джинсы\n"
@@ -632,7 +632,7 @@ class WeatherTab:
             recommendation += "💡 Утром и вечером может быть прохладнее."
             
         elif temp <= 15:
-            recommendation += "🌤️ ПРОХЛАДНО\n\n"
+            recommendation += "☁️ ПРОХЛАДНО\n\n"
             recommendation += "ОДЕЖДА:\n"
             recommendation += "• Футболка + легкая кофта\n"
             recommendation += "• Джинсы/брюки\n"
@@ -716,7 +716,7 @@ class WeatherTab:
             recommendation += "• 🌆 Вечером станет прохладнее. Не забудьте кофту\n"
         
         # ➕ ДОПОЛНИТЕЛЬНЫЕ РЕКОМЕНДАЦИИ ПО ПОГОДЕ:
-        recommendation += "\n🌦️ ПОГОДНЫЕ УСЛОВИЯ:\n"
+        recommendation += "\n☔ ПОГОДНЫЕ УСЛОВИЯ:\n"
         
         # Осадки
         if weather_type in ["rain", "heavy_rain"]:
@@ -736,11 +736,11 @@ class WeatherTab:
             recommendation += "  • Ограничьте выход на улицу\n"
             recommendation += "  • Резиновая обувь для безопасности\n"
         elif weather_type == "fog":
-            recommendation += "🌫️ ТУМАН:\n"
+            recommendation += "⛆ ТУМАН:\n"
             recommendation += "  • Светлая или светоотражающая одежда\n"
             recommendation += "  • Фонарик на телефоне\n"
         elif weather_type == "drizzle":
-            recommendation += "🌦️ МОРОСЬ:\n"
+            recommendation += "☔ МОРОСЬ:\n"
             recommendation += "  • Зонт или капюшон\n"
             recommendation += "  • Водоотталкивающая куртка\n"
         elif weather_type == "clear" and temp > 20:

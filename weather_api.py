@@ -438,9 +438,9 @@ class WeatherAPI:
         elif weather_code in [45, 48]:
             return "🌫️"  # Туман
         elif weather_code in [51, 53, 55, 56, 57]:
-            return "🌧️"  # Морось/дождь
+            return "☔"  # Морось/дождь
         elif weather_code in [61, 63, 65, 66, 67, 80, 81, 82]:
-            return "🌧️"  # Дождь
+            return "☔"  # Дождь
         elif weather_code in [71, 73, 75, 77, 85, 86]:
             return "🌨️"  # Снег
         elif weather_code in [95, 96, 99]:
