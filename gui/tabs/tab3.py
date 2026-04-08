@@ -3,6 +3,12 @@ import customtkinter as ctk
 import threading
 from datetime import datetime, timedelta
 from tkinter import messagebox
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.dates as mdates
+import numpy as np
 
 class Tab3:
     def __init__(self, parent, weather_api=None, settings_vars=None):
@@ -22,7 +28,7 @@ class Tab3:
         self.selected_date = None
         
         # Переменная для количества лет истории
-        self.history_years = ctk.IntVar(value=10)  # 10, 25 или 50 лет
+        self.history_years = ctk.IntVar(value=10)
         
         # Устанавливаем прозрачный фон родительского фрейма
         self.parent.configure(fg_color="transparent")
@@ -35,13 +41,13 @@ class Tab3:
     
     def setup_ui(self):
         """Создание интерфейса вкладки"""
-        # --- ИЗМЕНЕНИЕ: Создаем прокручиваемую область для всего содержимого ---
+        # Создаем прокручиваемую область для всего содержимого
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
             corner_radius=0
         )
-        self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
         
         # Контейнер для всего содержимого внутри прокрутки
         self.content_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -165,9 +171,6 @@ class Tab3:
         )
         self.update_button.pack(pady=(10, 15))
         
-        # --- ИЗМЕНЕНИЕ: Убираем встроенную прокрутку из records_container
-        # и делаем её частью общего скролла
-        
         # Статус
         self.status_label = ctk.CTkLabel(
             self.content_container,
@@ -213,7 +216,6 @@ class Tab3:
     def next_day(self):
         """Переход к следующему дню"""
         self.current_date = self.current_date + timedelta(days=1)
-        # Не даем заглянуть в будущее
         if self.current_date > datetime.now():
             self.current_date = datetime.now()
         self.update_date_display()
@@ -246,13 +248,11 @@ class Tab3:
             self.show_status("❌ Ошибка: API погоды не доступен", "red")
             return
         
-        # Блокируем кнопку
         self.update_button.configure(state="disabled", text="⏳ Загрузка...")
         years = self.history_years.get()
         date_str = self.current_date.strftime("%Y-%m-%d")
         self.show_status(f"🔄 Загрузка исторических данных за {years} лет для даты {date_str}...", "blue")
         
-        # Запускаем в отдельном потоке
         thread = threading.Thread(target=self.load_historical_data_thread, args=(years, date_str))
         thread.daemon = True
         thread.start()
@@ -267,11 +267,8 @@ class Tab3:
         
         if historical_data and historical_data.get('historical_records'):
             self.historical_data = historical_data
-            
-            # Конвертируем единицы измерения
             self.convert_historical_units(historical_data)
             
-            # Обновляем интерфейс в главном потоке
             self.parent.after(0, self.display_historical_data, historical_data)
             self.parent.after(0, lambda: self.show_status(
                 f"✅ Исторические данные за {len(historical_data['historical_records'])} лет загружены", 
@@ -294,7 +291,6 @@ class Tab3:
         if 'historical_records' not in historical_data:
             return
         
-        # Конвертация температуры
         temp_unit = self.settings_vars.get('temperature_unit', ctk.StringVar(value="celsius")).get()
         
         for record in historical_data['historical_records']:
@@ -305,7 +301,6 @@ class Tab3:
                 record['temperature_min'], temp_unit
             )
         
-        # Конвертируем также статистику
         if 'statistics' in historical_data:
             stats = historical_data['statistics']
             if 'avg_temperature_max' in stats:
@@ -326,8 +321,8 @@ class Tab3:
                 )
     
     def display_historical_data(self, historical_data):
-        """Отображение исторических данных"""
-        # Очищаем контейнер от предыдущих данных (кроме top_frame и status_label)
+        """Отображение исторических данных с вкладками"""
+        # Очищаем контейнер от предыдущих данных
         for widget in self.content_container.winfo_children():
             if widget not in [self.top_frame, self.status_label]:
                 widget.destroy()
@@ -336,7 +331,6 @@ class Tab3:
             self.show_no_data()
             return
         
-        # Определяем единицы измерения
         temp_unit = "°F" if self.settings_vars.get('temperature_unit', ctk.StringVar(value="celsius")).get() == "fahrenheit" else "°C"
         
         records = historical_data['historical_records']
@@ -351,7 +345,7 @@ class Tab3:
         )
         title.pack(pady=(10, 15))
         
-        # Статистика (если есть)
+        # Статистика
         if 'statistics' in historical_data:
             stats = historical_data['statistics']
             stats_frame = ctk.CTkFrame(self.content_container, corner_radius=10)
@@ -364,11 +358,9 @@ class Tab3:
             )
             stats_title.pack(pady=(10, 5))
             
-            # Создаем сетку для статистики
             stats_grid = ctk.CTkFrame(stats_frame, fg_color="transparent")
             stats_grid.pack(padx=20, pady=10)
             
-            # Средние температуры
             avg_temp_label = ctk.CTkLabel(
                 stats_grid,
                 text=f"Средняя max: {stats['avg_temperature_max']:.1f}{temp_unit}   |   Средняя min: {stats['avg_temperature_min']:.1f}{temp_unit}",
@@ -376,7 +368,6 @@ class Tab3:
             )
             avg_temp_label.pack(pady=2)
             
-            # Абсолютные рекорды
             record_label = ctk.CTkLabel(
                 stats_grid,
                 text=f"Абсолютный max: {stats['max_temperature_absolute']:.1f}{temp_unit}   |   Абсолютный min: {stats['min_temperature_absolute']:.1f}{temp_unit}",
@@ -384,7 +375,6 @@ class Tab3:
             )
             record_label.pack(pady=2)
             
-            # Средние осадки
             if 'avg_precipitation' in stats:
                 precip_label = ctk.CTkLabel(
                     stats_grid,
@@ -393,7 +383,6 @@ class Tab3:
                 )
                 precip_label.pack(pady=2)
             
-            # Количество лет с данными
             years_count = ctk.CTkLabel(
                 stats_grid,
                 text=f"Данные за {stats['years_with_data']} лет",
@@ -402,96 +391,184 @@ class Tab3:
             )
             years_count.pack(pady=2)
         
+        # СОЗДАЕМ ВКЛАДКИ ДЛЯ ГРАФИКОВ И ТАБЛИЦЫ
+        data_tabview = ctk.CTkTabview(self.content_container, height=500)
+        data_tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Вкладка с графиками
+        graphs_tab = data_tabview.add("📈 Графики")
+        # Вкладка с таблицей
+        table_tab = data_tabview.add("📋 Таблица данных")
+        
+        # Заполняем вкладку с графиками
+        theme = self.settings_vars.get('theme', ctk.StringVar(value="dark")).get()
+        self.create_temperature_graph(graphs_tab, records, temp_unit, theme)
+        self.create_precipitation_graph(graphs_tab, records, theme)
+        
+        # Заполняем вкладку с таблицей
+        self.create_data_table(table_tab, records, temp_unit, theme)
+        
+        # Информация о конвертации
+        info_label = ctk.CTkLabel(
+            self.content_container,
+            text=f"Единицы измерения: {temp_unit}",
+            font=("Arial", 10),
+            text_color="gray"
+        )
+        info_label.pack(pady=(5, 10))
+    
+    def create_temperature_graph(self, parent, records, temp_unit, theme):
+        """Создает график температур"""
+        years = [record['year'] for record in records]
+        temps_max = [record['temperature_max'] for record in records]
+        temps_min = [record['temperature_min'] for record in records]
+        
+        fig = Figure(figsize=(10, 5), dpi=100)
+        ax = fig.add_subplot(111)
+        
+        if theme == "dark":
+            bg_color = '#2D2D2D'
+            text_color = '#E0E0E0'
+            ax.set_facecolor('#1E1E1E')
+            fig.patch.set_facecolor('#2D2D2D')
+        else:
+            bg_color = '#F0F0F0'
+            text_color = '#333333'
+            ax.set_facecolor('#FFFFFF')
+            fig.patch.set_facecolor('#F0F0F0')
+        
+        ax.plot(years, temps_max, 'r-o', label=f'Макс. температура ({temp_unit})', linewidth=2, markersize=6)
+        ax.plot(years, temps_min, 'b-o', label=f'Мин. температура ({temp_unit})', linewidth=2, markersize=6)
+        ax.fill_between(years, temps_min, temps_max, alpha=0.2, color='gray')
+        
+        ax.set_xlabel('Год', fontsize=10, color=text_color)
+        ax.set_ylabel(f'Температура ({temp_unit})', fontsize=10, color=text_color)
+        ax.set_title('Динамика температур на выбранную дату', fontsize=12, fontweight='bold', color=text_color)
+        ax.legend(loc='best', facecolor=bg_color, edgecolor=text_color, labelcolor=text_color)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.tick_params(colors=text_color)
+        
+        for spine in ax.spines.values():
+            spine.set_color(text_color)
+        
+        canvas = FigureCanvasTkAgg(fig, master=parent)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+    
+    def create_precipitation_graph(self, parent, records, theme):
+        """Создает график осадков"""
+        years = [record['year'] for record in records]
+        precipitation = [record.get('precipitation', 0) for record in records]
+        
+        fig = Figure(figsize=(10, 4.5), dpi=100)
+        ax = fig.add_subplot(111)
+        
+        if theme == "dark":
+            bg_color = '#2D2D2D'
+            text_color = '#E0E0E0'
+            ax.set_facecolor('#1E1E1E')
+            fig.patch.set_facecolor('#2D2D2D')
+        else:
+            bg_color = '#F0F0F0'
+            text_color = '#333333'
+            ax.set_facecolor('#FFFFFF')
+            fig.patch.set_facecolor('#F0F0F0')
+        
+        colors = ["#87D1E7" if p > 0 else "#FF857F" for p in precipitation]
+        bars = ax.bar(years, precipitation, color=colors, alpha=0.7, edgecolor=text_color, linewidth=0.5)
+        
+        ax.set_xlabel('Год', fontsize=10, color=text_color)
+        ax.set_ylabel('Осадки (мм)', fontsize=10, color=text_color)
+        ax.set_title('Количество осадков на выбранную дату', fontsize=12, fontweight='bold', color=text_color)
+        ax.grid(True, alpha=0.3, linestyle='--', axis='y')
+        ax.tick_params(colors=text_color)
+        
+        for spine in ax.spines.values():
+            spine.set_color(text_color)
+        
+        for bar, precip in zip(bars, precipitation):
+            if precip > 0:
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                        f'{precip:.0f}', ha='center', va='bottom', fontsize=8, color=text_color)
+        
+        canvas = FigureCanvasTkAgg(fig, master=parent)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+    
+    def create_data_table(self, parent, records, temp_unit, theme):
+        """Создает таблицу данных"""
+        # Создаем контейнер с прокруткой для таблицы
+        table_container = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        table_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
         # Заголовок таблицы
-        table_header = ctk.CTkFrame(self.content_container, corner_radius=5, fg_color="#2B2B2B")
-        table_header.pack(fill="x", padx=10, pady=(20, 0))
+        if theme == "dark":
+            header_color = "#4A5568"
+            text_color = "white"
+            row_color1 = "#2D2D2D"
+            row_color2 = "#3D3D3D"
+            row_text_color = "#E0E0E0"
+        else:
+            header_color = "#4A5568"
+            text_color = "white"
+            row_color1 = "#F0F0F0"
+            row_color2 = "#E0E0E0"
+            row_text_color = "#333333"
         
-        # Колонки
-        col_year = ctk.CTkLabel(table_header, text="Год", width=80, font=("Arial", 12, "bold"))
-        col_year.pack(side="left", padx=5)
+        header_frame = ctk.CTkFrame(table_container, corner_radius=5, fg_color=header_color)
+        header_frame.pack(fill="x", pady=(0, 2))
         
-        col_temp_max = ctk.CTkLabel(table_header, text=f"Макс, {temp_unit}", width=100, font=("Arial", 12, "bold"))
-        col_temp_max.pack(side="left", padx=5)
+        col_widths = [80, 100, 100, 150, 100]
+        col_titles = ["Год", f"Макс, {temp_unit}", f"Мин, {temp_unit}", "Погода", "Осадки, мм"]
         
-        col_temp_min = ctk.CTkLabel(table_header, text=f"Мин, {temp_unit}", width=100, font=("Arial", 12, "bold"))
-        col_temp_min.pack(side="left", padx=5)
-        
-        col_weather = ctk.CTkLabel(table_header, text="Погода", width=150, font=("Arial", 12, "bold"))
-        col_weather.pack(side="left", padx=5)
-        
-        col_precip = ctk.CTkLabel(table_header, text="Осадки, мм", width=100, font=("Arial", 12, "bold"))
-        col_precip.pack(side="left", padx=5)
-        
-        # --- ИЗМЕНЕНИЕ: Убираем прокрутку из records_container, 
-        # теперь прокрутка обеспечивается основным scroll_frame
-        records_container = ctk.CTkFrame(self.content_container, corner_radius=5)
-        records_container.pack(fill="x", padx=10, pady=5)
+        for i, (width, title) in enumerate(zip(col_widths, col_titles)):
+            col_label = ctk.CTkLabel(
+                header_frame, 
+                text=title, 
+                width=width, 
+                font=("Arial", 12, "bold"),
+                text_color=text_color
+            )
+            col_label.pack(side="left", padx=5, pady=8)
         
         # Добавляем записи
         for i, record in enumerate(records):
-            # Чередуем цвета строк
-            row_color = "#3A3A3A" if i % 2 == 0 else "#2D2D2D"
+            row_color = row_color1 if i % 2 == 0 else row_color2
             
-            row_frame = ctk.CTkFrame(records_container, fg_color=row_color, height=35)
+            row_frame = ctk.CTkFrame(table_container, fg_color=row_color, height=35)
             row_frame.pack(fill="x", pady=1)
             row_frame.pack_propagate(False)
             
-            # Год
             year_label = ctk.CTkLabel(
-                row_frame, 
-                text=str(record['year']), 
-                width=80,
-                font=("Arial", 11)
+                row_frame, text=str(record['year']), width=80,
+                font=("Arial", 11), text_color=row_text_color
             )
             year_label.pack(side="left", padx=5)
             
-            # Макс температура
             temp_max_label = ctk.CTkLabel(
-                row_frame, 
-                text=f"{record['temperature_max']:.1f}", 
-                width=100,
-                font=("Arial", 11)
+                row_frame, text=f"{record['temperature_max']:.1f}", width=100,
+                font=("Arial", 11), text_color=row_text_color
             )
             temp_max_label.pack(side="left", padx=5)
             
-            # Мин температура
             temp_min_label = ctk.CTkLabel(
-                row_frame, 
-                text=f"{record['temperature_min']:.1f}", 
-                width=100,
-                font=("Arial", 11)
+                row_frame, text=f"{record['temperature_min']:.1f}", width=100,
+                font=("Arial", 11), text_color=row_text_color
             )
             temp_min_label.pack(side="left", padx=5)
             
-            # Погода (иконка + описание)
-            weather_text = f"{record.get('weather_icon', '')} {record.get('weather_description', '')[:15]}"
+            weather_text = f"{record.get('weather_icon', '')} {record.get('weather_description', '')[:20]}"
             weather_label = ctk.CTkLabel(
-                row_frame, 
-                text=weather_text, 
-                width=150,
-                font=("Arial", 11),
-                anchor="w"
+                row_frame, text=weather_text, width=150,
+                font=("Arial", 11), anchor="w", text_color=row_text_color
             )
             weather_label.pack(side="left", padx=5)
             
-            # Осадки
             precip_label = ctk.CTkLabel(
-                row_frame, 
-                text=f"{record['precipitation']:.1f}", 
-                width=100,
-                font=("Arial", 11)
+                row_frame, text=f"{record['precipitation']:.1f}", width=100,
+                font=("Arial", 11), text_color=row_text_color
             )
             precip_label.pack(side="left", padx=5)
-        
-        # Информация о конвертации
-        if 'temperature_unit' in self.settings_vars:
-            info_label = ctk.CTkLabel(
-                self.content_container,
-                text=f"Единицы измерения: {temp_unit}",
-                font=("Arial", 10),
-                text_color="gray"
-            )
-            info_label.pack(pady=(5, 10))
     
     def show_no_data(self):
         """Показывает сообщение об отсутствии данных"""
@@ -511,7 +588,6 @@ class Tab3:
         """Показывает статус"""
         theme = self.settings_vars.get('theme', ctk.StringVar(value="dark")).get()
         
-        # Выбираем цвет в зависимости от темы
         if color == "green":
             text_color = "#4CAF50" if theme == "light" else "#81C784"
         elif color == "red":
@@ -528,5 +604,5 @@ class Tab3:
     
     def on_theme_changed(self, *args):
         """Обработчик изменения темы"""
-        # Обновляем цвета, если нужно
-        pass
+        if self.historical_data:
+            self.display_historical_data(self.historical_data)

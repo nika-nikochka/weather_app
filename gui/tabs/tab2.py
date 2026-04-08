@@ -38,14 +38,14 @@ class Tab2:
         )
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Контейнер для всего содержимого внутри прокрутки
+        # Контейнер для всего содержимого
         self.content_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         self.content_frame.pack(fill="both", expand=True)
         
         # Верхняя панель с информацией о городе и переключателем дней
         self.top_frame = ctk.CTkFrame(self.content_frame, corner_radius=10)
-        self.top_frame.pack(fill="x", pady=(0, 20))
-        
+        self.top_frame.pack(fill="x", pady=(0, 20), padx=10)  # padx=10 для отступов по бокам
+            
         # Информация о городе
         self.city_label = ctk.CTkLabel(
             self.top_frame,
@@ -95,9 +95,9 @@ class Tab2:
         )
         self.update_button.pack(pady=(0, 15))
         
-        # --- ИЗМЕНЕНИЕ: Контейнер для карточек прогноза (без собственной прокрутки) ---
+         # Контейнер для карточек прогноза
         self.cards_container = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        self.cards_container.pack(fill="both", expand=True)
+        self.cards_container.pack(fill="both", expand=True, padx=10)  # padx=10 для отступов по бокам
         
         # Здесь будут создаваться строки с карточками динамически
         self.rows = []  # Список для хранения строк

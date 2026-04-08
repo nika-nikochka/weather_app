@@ -297,6 +297,109 @@ class WeatherTab:
         )
         self.status_label.pack(pady=(0, 10))
     
+    def get_weather_conditions(self, weathercode):
+        """Возвращает тип погоды для рекомендаций"""
+        # Коды погоды Open-Meteo
+        if weathercode in [0]:  # Ясно
+            return "clear", "☀️"
+        elif weathercode in [1, 2]:  # Преимущественно ясно/облачно
+            return "partly_cloudy", "⛅"
+        elif weathercode in [3]:  # Пасмурно
+            return "cloudy", "☁️"
+        elif weathercode in [45, 48]:  # Туман
+            return "fog", "🌫️"
+        elif weathercode in [51, 53, 55, 56, 57]:  # Морось
+            return "drizzle", "🌦️"
+        elif weathercode in [61, 63, 65, 66, 67]:  # Дождь
+            return "rain", "🌧️"
+        elif weathercode in [71, 73, 75, 77]:  # Снег
+            return "snow", "❄️"
+        elif weathercode in [80, 81, 82]:  # Ливень
+            return "heavy_rain", "⛈️"
+        elif weathercode in [95, 96, 99]:  # Гроза
+            return "thunderstorm", "⚡"
+        return "unknown", "🌡️"
+    
+    def get_season(self):
+        """Определяет сезон"""
+        month = datetime.now().month
+        if month in [12, 1, 2]:
+            return "winter", "❄️ ЗИМА"
+        elif month in [3, 4, 5]:
+            return "spring", "🌸 ВЕСНА"
+        elif month in [6, 7, 8]:
+            return "summer", "☀️ ЛЕТО"
+        else:
+            return "autumn", "🍂 ОСЕНЬ"
+    
+    def add_uv_recommendation(self, uv_index):
+        """Добавляет рекомендации по УФ-защите"""
+        if uv_index >= 8:
+            return "☀️☀️☀️ ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС ({:.1f}):\n".format(uv_index) + \
+                   "  • Солнцезащитный крем SPF 50+\n" + \
+                   "  • Закрытая одежда светлых тонов\n" + \
+                   "  • Широкополая шляпа\n" + \
+                   "  • Солнцезащитные очки\n" + \
+                   "  • Ограничьте пребывание на солнце 11:00-16:00\n\n"
+        elif uv_index >= 6:
+            return "☀️ ВЫСОКИЙ УФ-ИНДЕКС ({:.1f}):\n".format(uv_index) + \
+                   "  • Крем SPF 30+\n" + \
+                   "  • Головной убор и очки\n" + \
+                   "  • Ищите тень в полдень\n\n"
+        elif uv_index >= 3:
+            return "☀️ УМЕРЕННЫЙ УФ-ИНДЕКС ({:.1f}):\n".format(uv_index) + \
+                   "  • Солнцезащитный крем SPF 15+\n" + \
+                   "  • Головной убор рекомендуется\n\n"
+        return ""
+    
+    def add_material_recommendations(self, temp, weather_type):
+        """Рекомендации по материалам одежды"""
+        materials = "\n🧵 РЕКОМЕНДУЕМЫЕ МАТЕРИАЛЫ:\n"
+        
+        if temp <= -10:
+            materials += "  • Верх: Пух (80/20) или современные мембраны\n"
+            materials += "  • Средний слой: Меринос или флис\n"
+            materials += "  • Базовый слой: Термобелье из мериноса\n"
+        elif temp <= 5:
+            materials += "  • Верх: Ветровка или плащ\n"
+            materials += "  • Средний слой: Флис или шерсть\n"
+        elif temp <= 15:
+            materials += "  • Верх: Хлопок, лён, деним\n"
+            materials += "  • Для вечера: Лёгкая кофта или кардиган\n"
+        elif temp > 20:
+            materials += "  • Дышащие ткани: Хлопок, лён, тенсел\n"
+            materials += "  • Избегайте синтетики в жаркую погоду\n"
+        
+        if weather_type in ["rain", "heavy_rain"]:
+            materials += "  • Верхний слой: Гортекс или аналогичная мембрана\n"
+        elif weather_type == "snow":
+            materials += "  • Верхний слой: Водоотталкивающая ткань\n"
+        
+        return materials
+    
+    def add_seasonal_tips(self, season):
+        """Добавляет сезонные советы"""
+        season_tips = "\n📅 СЕЗОННЫЕ СОВЕТЫ:\n"
+        
+        if season == "winter":
+            season_tips += "  • Носите несколько слоёв для сохранения тепла\n"
+            season_tips += "  • Закрывайте уши и шею от ветра\n"
+            season_tips += "  • Используйте увлажняющий крем для защиты кожи\n"
+        elif season == "spring":
+            season_tips += "  • Одевайтесь слоями - погода переменчива\n"
+            season_tips += "  • Не убирайте тёплые вещи далеко\n"
+            season_tips += "  • Будьте готовы к внезапным дождям\n"
+        elif season == "summer":
+            season_tips += "  • Носите светлую одежду из натуральных тканей\n"
+            season_tips += "  • Пейте больше воды в течение дня\n"
+            season_tips += "  • Избегайте солнца в пиковые часы\n"
+        elif season == "autumn":
+            season_tips += "  • Готовьтесь к резким перепадам температуры\n"
+            season_tips += "  • Непромокаемая обувь будет кстати\n"
+            season_tips += "  • Светоотражающие элементы на одежде\n"
+        
+        return season_tips
+    
     def show_clothing_recommendation_window(self):
         """Показывает отдельное окно с рекомендациями по одежде"""
         
@@ -309,7 +412,7 @@ class WeatherTab:
         # Создаем новое окно
         self.recommendation_window = ctk.CTkToplevel(self.parent)
         self.recommendation_window.title(f"👔 Рекомендации по одежде - {self.current_city_name}")
-        self.recommendation_window.geometry("500x500")
+        self.recommendation_window.geometry("550x600")
         self.recommendation_window.resizable(False, False)
         
         # Делаем окно модальным (блокирует основное окно)
@@ -353,18 +456,25 @@ class WeatherTab:
             feels_like = current.get('apparent_temperature', temp)
             wind = current.get('windspeed', 0)
             humidity = current.get('relative_humidity', 50)
+            weathercode = current.get('weathercode')
+            uv_index = current.get('uv_index', 0)
+            precip_prob = current.get('precipitation_probability', 0)
             
             # Получаем описание погоды
             weather_desc = "Неизвестно"
-            if 'weathercode' in current:
-                weather_desc = self.weather_api.get_weather_description(current['weathercode'])
-                weather_icon = self.weather_api.get_weather_icon(current['weathercode'])
+            if weathercode is not None:
+                weather_desc = self.weather_api.get_weather_description(weathercode)
+                weather_icon = self.weather_api.get_weather_icon(weathercode)
             else:
                 weather_icon = "🌡️"
             
             summary_text = f"{weather_icon} {weather_desc}\n"
-            summary_text += f"Температура: {temp:.1f}°C | Ощущается: {feels_like:.1f}°C\n"
-            summary_text += f"Ветер: {wind:.1f} км/ч | Влажность: {humidity}%"
+            summary_text += f"🌡️ Температура: {temp:.1f}°C | Ощущается: {feels_like:.1f}°C\n"
+            summary_text += f"💨 Ветер: {wind:.1f} км/ч | 💧 Влажность: {humidity}%"
+            if uv_index > 0:
+                summary_text += f"\n☀️ УФ-индекс: {uv_index:.1f}"
+            if precip_prob > 0:
+                summary_text += f"\n🌧️ Вероятность осадков: {precip_prob:.0f}%"
             
             weather_summary = ctk.CTkLabel(
                 summary_frame,
@@ -381,8 +491,20 @@ class WeatherTab:
         
         # Текст рекомендаций
         recommendation_text = self.generate_clothing_recommendation(
-            temp, feels_like, wind, humidity
+            temp, feels_like, wind, humidity, weathercode, precip_prob
         )
+        
+        # Добавляем УФ-рекомендации
+        if uv_index > 0:
+            recommendation_text += self.add_uv_recommendation(uv_index)
+        
+        # Добавляем рекомендации по материалам
+        weather_type, _ = self.get_weather_conditions(weathercode) if weathercode is not None else ("unknown", "🌡️")
+        recommendation_text += self.add_material_recommendations(temp, weather_type)
+        
+        # Добавляем сезонные советы
+        season, season_icon = self.get_season()
+        recommendation_text += self.add_seasonal_tips(season)
         
         # Создаем текстовое поле с прокруткой для длинных рекомендаций
         textbox = ctk.CTkTextbox(
@@ -419,8 +541,8 @@ class WeatherTab:
             self.recommendation_window.destroy()
             self.recommendation_window = None
     
-    def generate_clothing_recommendation(self, temp, feels_like, wind_speed, humidity):
-        """Генерирует рекомендации по одежде на основе погоды"""
+    def generate_clothing_recommendation(self, temp, feels_like, wind_speed, humidity, weathercode=None, precip_prob=0):
+        """Улучшенная генерация рекомендаций на основе погоды"""
         
         # Определяем текущее время суток
         current_hour = datetime.now().hour
@@ -433,13 +555,20 @@ class WeatherTab:
         else:
             time_of_day = "ночь"
         
-        recommendation = f"🏙️ Сейчас {time_of_day}\n\n"
+        # Получаем тип погоды
+        weather_type, weather_icon = self.get_weather_conditions(weathercode) if weathercode is not None else ("unknown", "🌡️")
+        
+        recommendation = f"🏙️ Сейчас {time_of_day}\n"
+        if weathercode is not None:
+            recommendation += f"{weather_icon} Погода: {self.weather_api.get_weather_description(weathercode)}\n\n"
+        else:
+            recommendation += "\n"
         
         # Базовая рекомендация по температуре
         if temp <= -25:
             recommendation += "❄️❄️❄️ КАТАСТРОФИЧЕСКИ ХОЛОДНО ❄️❄️❄️\n\n"
             recommendation += "ОДЕЖДА:\n"
-            recommendation += "• Термобелье (верх и низ)\n"
+            recommendation += "• Термобелье (верх и низ) - обязательно!\n"
             recommendation += "• Утепленные штаны/комбинезон\n"
             recommendation += "• Пуховик (максимальное утепление)\n"
             recommendation += "• Шапка-ушанка + балаклава\n"
@@ -550,7 +679,7 @@ class WeatherTab:
             recommendation += "💡 Оставайтесь в тени! Используйте кондиционер."
         
         # Дополнительные рекомендации
-        recommendation += "\n📊 ДОПОЛНИТЕЛЬНЫЕ ФАКТОРЫ:\n"
+        recommendation += "\n\n📊 ДОПОЛНИТЕЛЬНЫЕ ФАКТОРЫ:\n"
         
         # Ощущаемая температура
         if feels_like < temp - 3:
@@ -585,6 +714,48 @@ class WeatherTab:
             recommendation += "• 🌅 Утром прохладно, днем потеплеет. Одевайтесь слоями\n"
         elif time_of_day == "вечер":
             recommendation += "• 🌆 Вечером станет прохладнее. Не забудьте кофту\n"
+        
+        # ➕ ДОПОЛНИТЕЛЬНЫЕ РЕКОМЕНДАЦИИ ПО ПОГОДЕ:
+        recommendation += "\n🌦️ ПОГОДНЫЕ УСЛОВИЯ:\n"
+        
+        # Осадки
+        if weather_type in ["rain", "heavy_rain"]:
+            recommendation += "🌂 ОБЯЗАТЕЛЬНО:\n"
+            recommendation += "  • Водонепроницаемая куртка или плащ\n"
+            recommendation += "  • Зонт (лучше ветрозащитный)\n"
+            recommendation += "  • Водоотталкивающая обувь\n"
+            recommendation += "  • Запасные носки в сумку\n"
+        elif weather_type == "snow":
+            recommendation += "❄️ СНЕГОПАД:\n"
+            recommendation += "  • Непромокаемые перчатки\n"
+            recommendation += "  • Обувь с нескользящей подошвой\n"
+            recommendation += "  • Водоотталкивающая обработка для куртки\n"
+        elif weather_type == "thunderstorm":
+            recommendation += "⚡ ГРОЗА:\n"
+            recommendation += "  • Избегайте металлических аксессуаров\n"
+            recommendation += "  • Ограничьте выход на улицу\n"
+            recommendation += "  • Резиновая обувь для безопасности\n"
+        elif weather_type == "fog":
+            recommendation += "🌫️ ТУМАН:\n"
+            recommendation += "  • Светлая или светоотражающая одежда\n"
+            recommendation += "  • Фонарик на телефоне\n"
+        elif weather_type == "drizzle":
+            recommendation += "🌦️ МОРОСЬ:\n"
+            recommendation += "  • Зонт или капюшон\n"
+            recommendation += "  • Водоотталкивающая куртка\n"
+        elif weather_type == "clear" and temp > 20:
+            recommendation += "☀️ СОЛНЕЧНО:\n"
+            recommendation += "  • Солнцезащитные очки обязательны\n"
+            recommendation += "  • Головной убор\n"
+            recommendation += "  • Солнцезащитный крем\n"
+        
+        # Вероятность осадков
+        if precip_prob > 70:
+            recommendation += f"\n⚠️ ВЫСОКАЯ ВЕРОЯТНОСТЬ ОСАДКОВ ({precip_prob:.0f}%):\n"
+            recommendation += "  • Возьмите зонт или дождевик\n"
+        elif precip_prob > 40:
+            recommendation += f"\n☔ ВОЗМОЖНЫ ОСАДКИ ({precip_prob:.0f}%):\n"
+            recommendation += "  • Складной зонт не помешает\n"
         
         return recommendation
     
@@ -1023,7 +1194,29 @@ class WeatherTab:
         # Очищаем статус через 5 секунд
         self.status_label.after(5000, lambda: self.status_label.configure(text=""))
     
-    def update_weather_display(self, full_name, weather_data, temp_unit, wind_unit):
+    def convert_pressure(self, pressure_hpa, unit):
+        """Конвертирует давление из гПа в выбранную единицу"""
+        # Приводим к нижнему регистру для сравнения
+        unit_lower = unit.lower() if unit else 'hpa'
+        
+        if unit_lower in ['hpa', 'гпа']:
+            return pressure_hpa, 'гПа'
+        elif unit_lower in ['mmhg', 'мм рт. ст.', 'мм рт ст']:
+            # 1 гПа = 0.75006 мм рт. ст.
+            pressure_mmhg = pressure_hpa * 0.75006
+            return pressure_mmhg, 'мм рт. ст.'
+        elif unit_lower in ['kpa', 'кпа']:
+            # 1 гПа = 0.1 кПа
+            pressure_kpa = pressure_hpa / 10
+            return pressure_kpa, 'кПа'
+        elif unit_lower in ['bar', 'бар']:
+            # 1 гПа = 0.001 бар
+            pressure_bar = pressure_hpa / 1000
+            return pressure_bar, 'бар'
+        else:
+            return pressure_hpa, 'гПа'
+    
+    def update_weather_display(self, full_name, weather_data, temp_unit, wind_unit, pressure_unit='hPa'):
         """Обновление отображения погоды"""
         if 'current_weather' in weather_data:
             current = weather_data['current_weather']
@@ -1084,10 +1277,16 @@ class WeatherTab:
             else:
                 self.sunset_label.configure(text="--")
             
-            # Давление (если есть данные)
+            # Давление с конвертацией в выбранную единицу
             if 'pressure' in current:
-                pressure = current['pressure']
-                self.pressure_label.configure(text=f"{pressure} гПа")
+                pressure_hpa = current['pressure']
+                pressure_value, pressure_unit_text = self.convert_pressure(pressure_hpa, pressure_unit)
+                if pressure_unit in ['bar', 'бар']:
+                    self.pressure_label.configure(text=f"{pressure_value:.3f} {pressure_unit_text}")
+                elif pressure_unit in ['kPa', 'кПа']:
+                    self.pressure_label.configure(text=f"{pressure_value:.1f} {pressure_unit_text}")
+                else:
+                    self.pressure_label.configure(text=f"{pressure_value:.1f} {pressure_unit_text}")
             else:
                 self.pressure_label.configure(text="--")
             

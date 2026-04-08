@@ -344,7 +344,7 @@ class WeatherApp(ctk.CTk):
         
         # Подсвечиваем активную вкладку
         self.update_active_tab_highlight()
-    
+   
     def browse_folder(self):
         """Открытие диалога выбора папки"""
         from tkinter import filedialog
@@ -428,7 +428,7 @@ class WeatherApp(ctk.CTk):
             
             # Обновляем интерфейс в главном потоке
             self.after(0, lambda: self.weather_tab.update_weather_display(
-                full_name, weather_data, temp_unit, wind_unit
+                full_name, weather_data, temp_unit, wind_unit, self.pressure_unit.get()
             ))
             
             # После обновления текущей погоды, передаем город для прогноза и истории
