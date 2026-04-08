@@ -42,3 +42,10 @@ pip install -r requirements.txt
 3. Запуск приложения
 python main.py
 ```
+
+### 🧪 Системные требования
+- Python — версия 3.8 или выше
+
+- ОС — Windows / macOS / Linux
+
+- Интернет — требуется для получения данных о погоде
