@@ -3,6 +3,12 @@ import customtkinter as ctk
 from datetime import datetime
 import tkinter as tk
 from tkinter import Toplevel
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.dates as mdates
+from datetime import datetime, timedelta
 
 class WeatherTab:
     def __init__(self, parent, weather_api, callbacks):
@@ -38,6 +44,10 @@ class WeatherTab:
         self.current_weather_data = None
         self.current_city_name = None
         self.recommendation_window = None  # Для хранения ссылки на окно
+        
+        # Переменные для графика
+        self.chart_frame = None
+        self.chart_canvas = None
         
         # Переменные для выпадающего списка
         self.dropdown_frame = None
@@ -154,7 +164,7 @@ class WeatherTab:
         
         feels_title = ctk.CTkLabel(
             feels_frame,
-            text="🌡️ Ощущается",
+            text="🌡 Ощущается",
             font=("Arial", 14)
         )
         feels_title.pack()
@@ -280,6 +290,36 @@ class WeatherTab:
         )
         self.clothing_button.pack(pady=5)
         
+        # --- НОВЫЙ ФРЕЙМ ДЛЯ ГРАФИКА ---
+        self.chart_frame = ctk.CTkFrame(self.weather_frame, corner_radius=10)
+        self.chart_frame.pack(fill="x", padx=10, pady=(15, 10))
+        
+        # Заголовок графика
+        chart_title = ctk.CTkLabel(
+            self.chart_frame,
+            text="📈 Прогноз на сегодня",
+            font=("Arial", 18, "bold")
+        )
+        chart_title.pack(pady=(10, 5))
+        
+        # Контейнер для графика Matplotlib
+        self.chart_container = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
+        self.chart_container.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        
+        # Устанавливаем фиксированную высоту для контейнера графика
+        self.chart_container.configure(height=450)
+        self.chart_container.pack_propagate(False)
+        
+        # Изначально показываем сообщение о загрузке
+        self.chart_placeholder = ctk.CTkLabel(
+            self.chart_container,
+            text="👆 Выберите город для отображения графика\n\nБудут показаны:\n• Температура в течение дня\n• Влажность в течение дня",
+            font=("Arial", 14),
+            text_color="gray",
+            justify="center"
+        )
+        self.chart_placeholder.pack(expand=True, pady=50)
+        
         # Дополнительная информация (время обновления и т.д.)
         self.time_label = ctk.CTkLabel(
             self.weather_frame,
@@ -297,21 +337,209 @@ class WeatherTab:
         )
         self.status_label.pack(pady=(0, 10))
     
+    def update_daily_chart(self, weather_data, temp_unit):
+        """
+        Создает график температуры и осадков на текущий день
+        """
+        # Очищаем контейнер
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+        
+        # Проверяем наличие почасовых данных
+        if 'hourly' not in weather_data:
+            no_data_label = ctk.CTkLabel(
+                self.chart_container,
+                text="❌ Нет почасовых данных для отображения графика",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        hourly = weather_data['hourly']
+        
+        # Получаем текущую дату
+        today = datetime.now().date()
+        
+        # Собираем данные только на сегодня
+        times = []
+        temperatures = []
+        humidities = []
+        
+        for i, time_str in enumerate(hourly['time']):
+            # Парсим время (формат ISO)
+            if 'T' in time_str:
+                dt_str = time_str.replace('Z', '+00:00')
+                dt = datetime.fromisoformat(dt_str)
+            else:
+                # Если нет 'T', добавляем
+                dt = datetime.fromisoformat(time_str)
+            
+            if dt.date() == today:
+                hour = dt.hour
+                times.append(hour)
+                temperatures.append(hourly['temperature_2m'][i])
+                humidities.append(hourly.get('relative_humidity_2m', [0]*len(hourly['time']))[i])
+        
+        if not times:
+            no_data_label = ctk.CTkLabel(
+                self.chart_container,
+                text="❌ Нет данных для текущего дня",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        # Определяем цвета в зависимости от темы
+        theme = self.current_theme
+        if theme == "dark":
+            bg_color = '#2D2D2D'
+            text_color = '#E0E0E0'
+            plot_bg = '#1E1E1E'
+            grid_color = '#404040'
+            temp_color = '#FF6B6B'
+            humidity_color = '#4ECDC4'
+        else:
+            bg_color = '#F0F0F0'
+            text_color = '#333333'
+            plot_bg = '#FFFFFF'
+            grid_color = '#E0E0E0'
+            temp_color = '#E53E3E'
+            humidity_color = '#3182CE'
+        
+        # Создаем увеличенную фигуру
+        fig = Figure(figsize=(12, 7), dpi=100)
+        fig.patch.set_facecolor(bg_color)
+        fig.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.1, hspace=0.3)
+        
+        # График температуры (верхний)
+        ax1 = fig.add_subplot(211)
+        ax1.set_facecolor(plot_bg)
+        
+        # Строим линию температуры
+        ax1.plot(times, temperatures, 'o-', linewidth=2.5, markersize=8, 
+                label=f'Температура ({temp_unit})', color=temp_color)
+        
+        # Заливка под графиком
+        ax1.fill_between(times, temperatures, alpha=0.25, color=temp_color)
+        
+        ax1.set_title('Динамика температуры в течение дня', fontsize=13, fontweight='bold', color=text_color, pad=15)
+        ax1.grid(True, alpha=0.3, linestyle='--', color=grid_color)
+        ax1.set_xlim(0, 23)
+        ax1.set_xticks(range(0, 24, 2))
+        ax1.set_xticklabels([f'{h}:00' for h in range(0, 24, 2)], fontsize=9)
+        ax1.tick_params(colors=text_color, labelsize=10)
+        ax1.legend(loc='upper right', facecolor=bg_color, edgecolor=text_color, labelcolor=text_color, fontsize=10)
+        
+        for spine in ax1.spines.values():
+            spine.set_color(text_color)
+            spine.set_linewidth(1)
+        
+        # Добавляем значения на график температуры (каждые 2-3 часа)
+        for i, (x, y) in enumerate(zip(times, temperatures)):
+            if i % 2 == 0 or i == len(times) - 1:  # Показываем не все значения, чтобы не загромождать
+                offset = 12 if y > 0 else -15
+                ax1.annotate(f'{y:.1f}°', (x, y), textcoords="offset points", 
+                            xytext=(0, offset), ha='center', fontsize=8, 
+                            color=text_color, fontweight='bold',
+                            bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
+        
+        # Находим максимальную и минимальную температуру
+        max_temp = max(temperatures)
+        min_temp = min(temperatures)
+        max_idx = temperatures.index(max_temp)
+        min_idx = temperatures.index(min_temp)
+        
+        # Выделяем экстремумы
+        ax1.plot(times[max_idx], max_temp, 'D', markersize=10, color='#FFD700', 
+                markeredgecolor='#FF6600', markeredgewidth=2, zorder=5)
+        ax1.plot(times[min_idx], min_temp, 'v', markersize=10, color='#87CEEB', 
+                markeredgecolor='#1E90FF', markeredgewidth=2, zorder=5)
+        
+        # Добавляем аннотации экстремумов
+        ax1.annotate(f'Макс: {max_temp:.1f}{temp_unit}', 
+                    (times[max_idx], max_temp), textcoords="offset points", 
+                    xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                    color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
+        ax1.annotate(f'Мин: {min_temp:.1f}{temp_unit}', 
+                    (times[min_idx], min_temp), textcoords="offset points", 
+                    xytext=(10, -15), ha='left', fontsize=9, fontweight='bold',
+                    color='#1E90FF', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
+        
+        # Устанавливаем границы по Y с запасом сверху и снизу
+        temp_range = max_temp - min_temp
+        y_low = min_temp - temp_range * 0.15  # 15% запаса снизу
+        y_high = max_temp + temp_range * 0.25  # 25% запаса сверху (больше для аннотаций)
+        ax1.set_ylim(y_low, y_high)
+        
+        # График влажности (нижний)
+        ax2 = fig.add_subplot(212)
+        ax2.set_facecolor(plot_bg)
+        
+        # Строим столбцы влажности
+        bars = ax2.bar(times, humidities, color=humidity_color, alpha=0.7, 
+                    edgecolor=text_color, linewidth=0.8, width=0.6)
+        
+        ax2.set_xlabel('Время суток', fontsize=11, color=text_color, fontweight='bold')
+        ax2.set_ylabel('Влажность (%)', fontsize=11, color=text_color, fontweight='bold')
+        ax2.set_title('Влажность в течение дня', fontsize=13, fontweight='bold', color=text_color, pad=15)
+        ax2.grid(True, alpha=0.3, linestyle='--', axis='y', color=grid_color)
+        ax2.set_xlim(0, 23)
+        ax2.set_xticks(range(0, 24, 2))
+        ax2.set_xticklabels([f'{h}:00' for h in range(0, 24, 2)], fontsize=9)
+        ax2.tick_params(colors=text_color, labelsize=10)
+        
+        for spine in ax2.spines.values():
+            spine.set_color(text_color)
+            spine.set_linewidth(1)
+        
+        # Добавляем значения на столбцы влажности (для основных часов)
+        for bar, val in zip(bars, humidities):
+            if val > 0:
+                ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2,
+                        f'{val:.0f}%', ha='center', va='bottom', fontsize=8, 
+                        color=text_color, fontweight='bold')
+        
+        # Добавляем линию среднего значения влажности
+        avg_humidity = sum(humidities) / len(humidities)
+        ax2.axhline(y=avg_humidity, color='#FF6B6B', linestyle='--', linewidth=1.5, alpha=0.7)
+        
+        # Устанавливаем границы по Y для влажности с запасом сверху
+        max_humidity = max(humidities)
+        y_high_humidity = max_humidity + 15  # Добавляем 15% запаса сверху
+        ax2.set_ylim(0, max(y_high_humidity, 100))
+        
+        # Добавляем текст среднего значения справа
+        ax2.text(23.5, avg_humidity, f'Среднее: {avg_humidity:.0f}%', 
+                ha='right', va='center', fontsize=9, color='#FF6B6B',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
+        
+        fig.tight_layout()
+        
+        # Встраиваем график в интерфейс
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_container)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        # Сохраняем ссылку на canvas для возможного обновления
+        self.chart_canvas = canvas
+    
     def get_weather_conditions(self, weathercode):
         """Возвращает тип погоды для рекомендаций"""
         # Коды погоды Open-Meteo
         if weathercode in [0]:  # Ясно
-            return "clear", "☀️"
+            return "clear", "🔆"
         elif weathercode in [1, 2]:  # Преимущественно ясно/облачно
             return "partly_cloudy", "⛅"
         elif weathercode in [3]:  # Пасмурно
-            return "cloudy", "☁️"
+            return "cloudy", "☁"
         elif weathercode in [45, 48]:  # Туман
-            return "fog", "🌫️"
+            return "fog", "⛆"
         elif weathercode in [51, 53, 55, 56, 57]:  # Морось
-            return "drizzle", "🌦️"
+            return "drizzle", "☔"
         elif weathercode in [61, 63, 65, 66, 67]:  # Дождь
-            return "rain", "🌧️"
+            return "rain", "☔"
         elif weathercode in [71, 73, 75, 77]:  # Снег
             return "snow", "❄️"
         elif weathercode in [80, 81, 82]:  # Ливень
@@ -466,10 +694,10 @@ class WeatherTab:
                 weather_desc = self.weather_api.get_weather_description(weathercode)
                 weather_icon = self.weather_api.get_weather_icon(weathercode)
             else:
-                weather_icon = "🌡️"
+                weather_icon = "🌡"
             
             summary_text = f"{weather_icon} {weather_desc}\n"
-            summary_text += f"🌡️ Температура: {temp:.1f}°C | Ощущается: {feels_like:.1f}°C\n"
+            summary_text += f"🌡 Температура: {temp:.1f}°C | Ощущается: {feels_like:.1f}°C\n"
             summary_text += f"💨 Ветер: {wind:.1f} км/ч | 💧 Влажность: {humidity}%"
             if uv_index > 0:
                 summary_text += f"\n☀️ УФ-индекс: {uv_index:.1f}"
@@ -683,7 +911,7 @@ class WeatherTab:
         
         # Ощущаемая температура
         if feels_like < temp - 3:
-            recommendation += f"• 🌬️ Ветер усиливает охлаждение: ощущается как {feels_like:.1f}°C\n"
+            recommendation += f"• 💨 Ветер усиливает охлаждение: ощущается как {feels_like:.1f}°C\n"
             recommendation += "  → Добавьте ветрозащитную одежду\n"
         elif feels_like > temp + 3:
             recommendation += f"• 💧 Влажность усиливает жару: ощущается как {feels_like:.1f}°C\n"
@@ -827,6 +1055,12 @@ class WeatherTab:
                 hover_color=clothing_button_hover,
                 text_color="white"
             )
+        
+        # Обновляем график, если он есть
+        if self.current_weather_data and self.chart_canvas:
+            # Пересоздаем график с новой темой
+            temp_unit = "°F" if self.settings_vars.get('temperature_unit', ctk.StringVar(value="celsius")).get() == "fahrenheit" else "°C"
+            self.update_daily_chart(self.current_weather_data, temp_unit)
         
         # Обновляем цвета выпадающего списка, если он открыт
         self.update_dropdown_colors()
@@ -1221,7 +1455,7 @@ class WeatherTab:
         if 'current_weather' in weather_data:
             current = weather_data['current_weather']
             
-            # Сохраняем данные для рекомендаций
+            # Сохраняем данные для рекомендаций и графика
             self.current_weather_data = weather_data
             self.current_city_name = full_name
             
@@ -1293,6 +1527,9 @@ class WeatherTab:
             # Время обновления
             current_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
             self.time_label.configure(text=f"Обновлено: {current_time}")
+            
+            # ОТРИСОВЫВАЕМ ГРАФИК
+            self.update_daily_chart(weather_data, temp_unit)
             
             # Если окно с рекомендациями открыто, обновляем его
             if self.recommendation_window and self.recommendation_window.winfo_exists():

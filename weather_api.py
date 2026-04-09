@@ -428,21 +428,21 @@ class WeatherAPI:
     def get_weather_icon(weather_code):
         """Получение эмодзи для погоды"""
         if weather_code == 0:
-            return "☀️"  # Ясно
+            return "🔆"  # Ясно
         elif weather_code == 1:
             return "🌤️"  # Преимущественно ясно
         elif weather_code == 2:
             return "⛅"  # Переменная облачность
         elif weather_code == 3:
-            return "☁️"  # Пасмурно
+            return "☁"  # Пасмурно
         elif weather_code in [45, 48]:
-            return "🌫️"  # Туман
+            return "⛆"  # Туман
         elif weather_code in [51, 53, 55, 56, 57]:
             return "☔"  # Морось/дождь
         elif weather_code in [61, 63, 65, 66, 67, 80, 81, 82]:
             return "☔"  # Дождь
         elif weather_code in [71, 73, 75, 77, 85, 86]:
-            return "🌨️"  # Снег
+            return "🌨"  # Снег
         elif weather_code in [95, 96, 99]:
             return "⛈️"  # Гроза
         else:

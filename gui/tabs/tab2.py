@@ -3,6 +3,11 @@ import customtkinter as ctk
 import threading
 from datetime import datetime, timedelta
 from tkinter import messagebox
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.dates as mdates
 
 class Tab2:
     def __init__(self, parent, weather_api, settings_vars):
@@ -30,7 +35,7 @@ class Tab2:
     
     def setup_ui(self):
         """Создание интерфейса вкладки"""
-        # --- ИЗМЕНЕНИЕ: Создаем прокручиваемую область для всего содержимого ---
+        # Создаем прокручиваемую область для всего содержимого
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
@@ -44,7 +49,7 @@ class Tab2:
         
         # Верхняя панель с информацией о городе и переключателем дней
         self.top_frame = ctk.CTkFrame(self.content_frame, corner_radius=10)
-        self.top_frame.pack(fill="x", pady=(0, 20), padx=10)  # padx=10 для отступов по бокам
+        self.top_frame.pack(fill="x", pady=(0, 20), padx=10)
             
         # Информация о городе
         self.city_label = ctk.CTkLabel(
@@ -95,9 +100,25 @@ class Tab2:
         )
         self.update_button.pack(pady=(0, 15))
         
-         # Контейнер для карточек прогноза
-        self.cards_container = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        self.cards_container.pack(fill="both", expand=True, padx=10)  # padx=10 для отступов по бокам
+        # --- СОЗДАЕМ ВКЛАДКИ ДЛЯ ГРАФИКА И КАРТОЧЕК (КАК В TAB3) ---
+        self.data_tabview = ctk.CTkTabview(self.content_frame, height=600)
+        self.data_tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Вкладка с графиком
+        self.chart_tab = self.data_tabview.add("📈 График температуры")
+        # Вкладка с карточками
+        self.cards_tab = self.data_tabview.add("📋 Карточки прогноза")
+        
+        # Контейнер для графика
+        self.chart_container = ctk.CTkFrame(self.chart_tab, fg_color="transparent")
+        self.chart_container.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        # Контейнер для карточек прогноза (с прокруткой)
+        self.cards_scroll = ctk.CTkScrollableFrame(self.cards_tab, fg_color="transparent")
+        self.cards_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        self.cards_container = ctk.CTkFrame(self.cards_scroll, fg_color="transparent")
+        self.cards_container.pack(fill="both", expand=True)
         
         # Здесь будут создаваться строки с карточками динамически
         self.rows = []  # Список для хранения строк
@@ -115,18 +136,34 @@ class Tab2:
     
     def show_placeholder(self):
         """Показывает заглушку, когда город не выбран"""
-        # Очищаем контейнер
+        # Очищаем контейнер графика
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+        
+        # Очищаем контейнер карточек
         for widget in self.cards_container.winfo_children():
             widget.destroy()
         self.rows.clear()
         
-        placeholder = ctk.CTkLabel(
+        # Плейсхолдер для графика
+        chart_placeholder = ctk.CTkLabel(
+            self.chart_container,
+            text="👆 Выберите город на вкладке 'Погода'\nдля отображения графика температуры",
+            font=("Arial", 16),
+            text_color="gray",
+            justify="center"
+        )
+        chart_placeholder.pack(expand=True, padx=50, pady=50)
+        
+        # Плейсхолдер для карточек
+        cards_placeholder = ctk.CTkLabel(
             self.cards_container,
             text="👆 Выберите город на вкладке 'Погода'\nдля отображения прогноза",
             font=("Arial", 16),
-            text_color="gray"
+            text_color="gray",
+            justify="center"
         )
-        placeholder.pack(expand=True, padx=50, pady=50)
+        cards_placeholder.pack(expand=True, padx=50, pady=50)
     
     def set_city(self, city_info):
         """Устанавливает город для прогноза"""
@@ -169,6 +206,7 @@ class Tab2:
             self.convert_forecast_units(forecast_data)
             
             # Обновляем интерфейс в главном потоке
+            self.parent.after(0, self.display_temperature_chart, forecast_data)
             self.parent.after(0, self.display_forecast, forecast_data)
             self.parent.after(0, lambda: self.show_status(f"✅ Прогноз на {days} дней обновлен", "green"))
         else:
@@ -209,6 +247,144 @@ class Tab2:
                     daily['precipitation_sum'][i], precip_unit
                 )
     
+    def display_temperature_chart(self, forecast_data):
+        """Отображение графика температуры на период прогноза"""
+        # Очищаем контейнер
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+        
+        if 'daily' not in forecast_data:
+            no_data_label = ctk.CTkLabel(
+                self.chart_container,
+                text="❌ Нет данных для отображения графика",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        daily = forecast_data['daily']
+        days_count = len(daily['time'])
+        
+        # Получаем даты и температуры
+        dates = []
+        temps_max = []
+        temps_min = []
+        
+        for i in range(days_count):
+            date_str = daily['time'][i]
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            dates.append(date_obj)
+            temps_max.append(daily['temperature_2m_max'][i])
+            temps_min.append(daily['temperature_2m_min'][i])
+        
+        # Единицы измерения
+        temp_unit = "°F" if self.settings_vars['temperature_unit'].get() == "fahrenheit" else "°C"
+        
+        # Определяем тему
+        theme = self.settings_vars['theme'].get()
+        
+        # Цвета в зависимости от темы
+        if theme == "dark":
+            bg_color = '#2D2D2D'
+            text_color = '#E0E0E0'
+            plot_bg = '#1E1E1E'
+            grid_color = '#404040'
+            max_temp_color = '#FF6B6B'
+            min_temp_color = '#4ECDC4'
+            fill_color = '#FF6B6B'
+        else:
+            bg_color = '#F0F0F0'
+            text_color = '#333333'
+            plot_bg = '#FFFFFF'
+            grid_color = '#E0E0E0'
+            max_temp_color = '#E53E3E'
+            min_temp_color = '#3182CE'
+            fill_color = '#FF6B6B'
+        
+        # Создаем фигуру
+        fig = Figure(figsize=(12, 5), dpi=100)
+        fig.patch.set_facecolor(bg_color)
+        fig.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.12)
+        
+        ax = fig.add_subplot(111)
+        ax.set_facecolor(plot_bg)
+        
+        # Строим графики max и min температур
+        ax.plot(dates, temps_max, 'o-', linewidth=2.5, markersize=6, 
+                label=f'Макс. температура ({temp_unit})', color=max_temp_color)
+        ax.plot(dates, temps_min, 's-', linewidth=2.5, markersize=6, 
+                label=f'Мин. температура ({temp_unit})', color=min_temp_color)
+        
+        # Заливка между min и max
+        ax.fill_between(dates, temps_min, temps_max, alpha=0.2, color=fill_color)
+        
+        # Настройка осей
+        ax.set_xlabel('Дата', fontsize=11, color=text_color, fontweight='bold')
+        ax.set_ylabel(f'Температура ({temp_unit})', fontsize=11, color=text_color, fontweight='bold')
+        ax.set_title('Прогноз температуры на период', fontsize=13, fontweight='bold', color=text_color, pad=15)
+        ax.grid(True, alpha=0.3, linestyle='--', color=grid_color)
+        ax.legend(loc='upper right', facecolor=bg_color, edgecolor=text_color, 
+                  labelcolor=text_color, fontsize=10)
+        
+        # Форматирование оси X с датами
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m'))
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+        fig.autofmt_xdate(rotation=45)
+        ax.tick_params(colors=text_color, labelsize=9)
+        
+        # Настройка границ Y с запасом
+        all_temps = temps_max + temps_min
+        temp_range = max(all_temps) - min(all_temps)
+        y_low = min(all_temps) - temp_range * 0.1
+        y_high = max(all_temps) + temp_range * 0.15
+        ax.set_ylim(y_low, y_high)
+        
+        # Добавляем значения температур над точками
+        for i, (date, t_max, t_min) in enumerate(zip(dates, temps_max, temps_min)):
+            # Максимальная температура (сверху)
+            ax.annotate(f'{t_max:.0f}°', (date, t_max), textcoords="offset points", 
+                       xytext=(0, 8), ha='center', fontsize=8, fontweight='bold',
+                       color=max_temp_color, bbox=dict(boxstyle='round,pad=0.2', 
+                       facecolor=bg_color, alpha=0.7))
+            # Минимальная температура (снизу)
+            ax.annotate(f'{t_min:.0f}°', (date, t_min), textcoords="offset points", 
+                       xytext=(0, -12), ha='center', fontsize=8, fontweight='bold',
+                       color=min_temp_color, bbox=dict(boxstyle='round,pad=0.2', 
+                       facecolor=bg_color, alpha=0.7))
+        
+        # Выделяем максимальную и минимальную температуру за период
+        max_temp = max(temps_max)
+        min_temp = min(temps_min)
+        max_idx = temps_max.index(max_temp)
+        min_idx = temps_min.index(min_temp)
+        
+        ax.plot(dates[max_idx], max_temp, 'D', markersize=10, color='#FFD700', 
+                markeredgecolor='#FF6600', markeredgewidth=2, zorder=5)
+        ax.plot(dates[min_idx], min_temp, 'v', markersize=10, color='#87CEEB', 
+                markeredgecolor='#1E90FF', markeredgewidth=2, zorder=5)
+        
+        # Аннотации экстремумов
+        ax.annotate(f'Макс: {max_temp:.1f}{temp_unit}', 
+                   (dates[max_idx], max_temp), textcoords="offset points", 
+                   xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                   color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
+        ax.annotate(f'Мин: {min_temp:.1f}{temp_unit}', 
+                   (dates[min_idx], min_temp), textcoords="offset points", 
+                   xytext=(10, -15), ha='left', fontsize=9, fontweight='bold',
+                   color='#1E90FF', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
+        
+        for spine in ax.spines.values():
+            spine.set_color(text_color)
+            spine.set_linewidth(1)
+        
+        # Встраиваем график
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_container)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        self.chart_canvas = canvas
+    
     def display_forecast(self, forecast_data):
         """Отображение прогноза с карточками в столбик (максимум 4 в строке)"""
         # Очищаем контейнер
@@ -236,7 +412,7 @@ class Tab2:
         
         # Создаем строки по 4 карточки
         cards_per_row = 4
-        num_rows = (days + cards_per_row - 1) // cards_per_row  # Округление вверх
+        num_rows = (days + cards_per_row - 1) // cards_per_row
         
         for row in range(num_rows):
             # Создаем новую строку
@@ -261,7 +437,6 @@ class Tab2:
                 elif date_obj.date() == today + timedelta(days=1):
                     day_name = "Завтра"
                 else:
-                    # Название дня недели
                     day_name = self.get_weekday_name(date_obj.weekday())
                 
                 date_formatted = f"{day_name}\n{date_obj.strftime('%d.%m')}"
@@ -399,7 +574,6 @@ class Tab2:
         """Показывает статус"""
         theme = self.settings_vars['theme'].get()
         
-        # Выбираем цвет в зависимости от темы
         if color == "green":
             text_color = "#4CAF50" if theme == "light" else "#81C784"
         elif color == "red":
@@ -416,5 +590,5 @@ class Tab2:
     
     def on_theme_changed(self, *args):
         """Обработчик изменения темы"""
-        # Обновляем цвета, если нужно
-        pass
+        if self.current_forecast_data:
+            self.display_temperature_chart(self.current_forecast_data)
