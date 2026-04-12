@@ -45,9 +45,10 @@ class WeatherTab:
         self.current_city_name = None
         self.recommendation_window = None  # Для хранения ссылки на окно
         
-        # Переменные для графика
+        # Переменные для графиков
         self.chart_frame = None
         self.chart_canvas = None
+        self.wind_chart_canvas = None  # Для графика ветра
         
         # Переменные для выпадающего списка
         self.dropdown_frame = None
@@ -290,30 +291,46 @@ class WeatherTab:
         )
         self.clothing_button.pack(pady=5)
         
-        # --- НОВЫЙ ФРЕЙМ ДЛЯ ГРАФИКА ---
+        # --- ГРАФИК ТЕМПЕРАТУРЫ ---
         self.chart_frame = ctk.CTkFrame(self.weather_frame, corner_radius=10)
         self.chart_frame.pack(fill="x", padx=10, pady=(15, 10))
         
-        # Заголовок графика
+        # Заголовок графика температуры
         chart_title = ctk.CTkLabel(
             self.chart_frame,
-            text="📈 Прогноз на сегодня",
+            text="📈 Прогноз температуры на сегодня",
             font=("Arial", 18, "bold")
         )
         chart_title.pack(pady=(10, 5))
         
-        # Контейнер для графика Matplotlib
+        # Контейнер для графика температуры
         self.chart_container = ctk.CTkFrame(self.chart_frame, fg_color="transparent")
         self.chart_container.pack(fill="both", expand=True, padx=15, pady=(5, 15))
-        
-        # Устанавливаем фиксированную высоту для контейнера графика
-        self.chart_container.configure(height=450)
+        self.chart_container.configure(height=400)
         self.chart_container.pack_propagate(False)
         
-        # Изначально показываем сообщение о загрузке
+        # --- ГРАФИК ВЕТРА ---
+        self.wind_chart_frame = ctk.CTkFrame(self.weather_frame, corner_radius=10)
+        self.wind_chart_frame.pack(fill="x", padx=10, pady=(10, 10))
+        
+        # Заголовок графика ветра
+        wind_chart_title = ctk.CTkLabel(
+            self.wind_chart_frame,
+            text="💨 Прогноз ветра на сегодня",
+            font=("Arial", 18, "bold")
+        )
+        wind_chart_title.pack(pady=(10, 5))
+        
+        # Контейнер для графика ветра
+        self.wind_chart_container = ctk.CTkFrame(self.wind_chart_frame, fg_color="transparent")
+        self.wind_chart_container.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        self.wind_chart_container.configure(height=400)
+        self.wind_chart_container.pack_propagate(False)
+        
+        # Изначально показываем сообщение о загрузке для графиков
         self.chart_placeholder = ctk.CTkLabel(
             self.chart_container,
-            text="👆 Выберите город для отображения графика\n\nБудут показаны:\n• Температура в течение дня\n• Влажность в течение дня",
+            text="👆 Выберите город для отображения графиков\n\nБудут показаны:\n• Температура в течение дня\n• Влажность в течение дня\n• Скорость ветра в течение дня",
             font=("Arial", 14),
             text_color="gray",
             justify="center"
@@ -524,6 +541,205 @@ class WeatherTab:
         
         # Сохраняем ссылку на canvas для возможного обновления
         self.chart_canvas = canvas
+        
+        # Обновляем график ветра
+        self.update_wind_chart(weather_data)
+    
+    def update_wind_chart(self, weather_data):
+        """
+        Создает график скорости ветра на текущий день
+        """
+        # Очищаем контейнер
+        for widget in self.wind_chart_container.winfo_children():
+            widget.destroy()
+        
+        # Проверяем наличие почасовых данных
+        if 'hourly' not in weather_data:
+            no_data_label = ctk.CTkLabel(
+                self.wind_chart_container,
+                text="❌ Нет почасовых данных для отображения графика ветра",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        hourly = weather_data['hourly']
+        
+        # Проверяем наличие данных о ветре
+        if 'windspeed_10m' not in hourly:
+            no_data_label = ctk.CTkLabel(
+                self.wind_chart_container,
+                text="❌ Нет данных о скорости ветра",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        # Получаем текущую дату
+        today = datetime.now().date()
+        
+        # Собираем данные только на сегодня
+        times = []
+        wind_speeds = []
+        wind_directions = []
+        
+        for i, time_str in enumerate(hourly['time']):
+            # Парсим время (формат ISO)
+            if 'T' in time_str:
+                dt_str = time_str.replace('Z', '+00:00')
+                dt = datetime.fromisoformat(dt_str)
+            else:
+                dt = datetime.fromisoformat(time_str)
+            
+            if dt.date() == today:
+                hour = dt.hour
+                times.append(hour)
+                wind_speeds.append(hourly['windspeed_10m'][i])
+                
+                # Получаем направление ветра, если есть
+                if 'winddirection_10m' in hourly:
+                    wind_directions.append(hourly['winddirection_10m'][i])
+                else:
+                    wind_directions.append(0)
+        
+        if not times:
+            no_data_label = ctk.CTkLabel(
+                self.wind_chart_container,
+                text="❌ Нет данных о ветре для текущего дня",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_data_label.pack(expand=True, pady=50)
+            return
+        
+        # Определяем цвета в зависимости от темы
+        theme = self.current_theme
+        if theme == "dark":
+            bg_color = '#2D2D2D'
+            text_color = '#E0E0E0'
+            plot_bg = '#1E1E1E'
+            grid_color = '#404040'
+            wind_color = '#4ECDC4'
+            gust_color = '#FF6B6B'
+        else:
+            bg_color = '#F0F0F0'
+            text_color = '#333333'
+            plot_bg = '#FFFFFF'
+            grid_color = '#E0E0E0'
+            wind_color = '#00A896'
+            gust_color = '#E53E3E'
+        
+        # Создаем фигуру
+        fig = Figure(figsize=(12, 6), dpi=100)
+        fig.patch.set_facecolor(bg_color)
+        fig.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.1)
+        
+        # Основной график скорости ветра
+        ax1 = fig.add_subplot(111)
+        ax1.set_facecolor(plot_bg)
+        
+        # Строим линию скорости ветра
+        ax1.plot(times, wind_speeds, 'o-', linewidth=2.5, markersize=8, 
+                label='Скорость ветра (км/ч)', color=wind_color)
+        
+        # Заливка под графиком
+        ax1.fill_between(times, wind_speeds, alpha=0.25, color=wind_color)
+        
+        # Добавляем порывы ветра, если есть
+        if 'windgusts_10m' in hourly:
+            wind_gusts = []
+            for i, time_str in enumerate(hourly['time']):
+                if 'T' in time_str:
+                    dt_str = time_str.replace('Z', '+00:00')
+                    dt = datetime.fromisoformat(dt_str)
+                else:
+                    dt = datetime.fromisoformat(time_str)
+                
+                if dt.date() == today:
+                    wind_gusts.append(hourly['windgusts_10m'][i])
+            
+            if wind_gusts:
+                ax1.plot(times, wind_gusts, 's--', linewidth=1.5, markersize=6, 
+                        label='Порывы ветра (км/ч)', color=gust_color, alpha=0.7)
+        
+        ax1.set_title('Скорость ветра в течение дня', fontsize=13, fontweight='bold', color=text_color, pad=15)
+        ax1.set_xlabel('Время суток', fontsize=11, color=text_color, fontweight='bold')
+        ax1.set_ylabel('Скорость ветра (км/ч)', fontsize=11, color=text_color, fontweight='bold')
+        ax1.grid(True, alpha=0.3, linestyle='--', color=grid_color)
+        ax1.set_xlim(0, 23)
+        ax1.set_xticks(range(0, 24, 2))
+        ax1.set_xticklabels([f'{h}:00' for h in range(0, 24, 2)], fontsize=9)
+        ax1.tick_params(colors=text_color, labelsize=10)
+        ax1.legend(loc='upper right', facecolor=bg_color, edgecolor=text_color, labelcolor=text_color, fontsize=10)
+        
+        for spine in ax1.spines.values():
+            spine.set_color(text_color)
+            spine.set_linewidth(1)
+        
+        # Добавляем значения скорости ветра
+        for i, (x, y) in enumerate(zip(times, wind_speeds)):
+            if i % 2 == 0 or i == len(times) - 1:
+                offset = 15 if y > 15 else 10
+                ax1.annotate(f'{y:.1f}', (x, y), textcoords="offset points", 
+                            xytext=(0, offset), ha='center', fontsize=9, 
+                            color=text_color, fontweight='bold',
+                            bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
+        
+        # Находим максимальную скорость ветра
+        max_wind = max(wind_speeds)
+        max_idx = wind_speeds.index(max_wind)
+        
+        # Выделяем максимум
+        ax1.plot(times[max_idx], max_wind, 'D', markersize=10, color='#FFD700', 
+                markeredgecolor='#FF6600', markeredgewidth=2, zorder=5)
+        
+        # Добавляем аннотацию максимума
+        ax1.annotate(f'Макс: {max_wind:.1f} км/ч', 
+                    (times[max_idx], max_wind), textcoords="offset points", 
+                    xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                    color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
+        
+        # Добавляем цветовые зоны для комфорта
+        # Зеленая зона (комфортный ветер)
+        ax1.axhspan(0, 15, alpha=0.1, color='green', label='Комфортный ветер (0-15 км/ч)')
+        # Желтая зона (умеренный ветер)
+        ax1.axhspan(15, 30, alpha=0.1, color='yellow', label='Умеренный ветер (15-30 км/ч)')
+        # Оранжевая зона (сильный ветер)
+        ax1.axhspan(30, 50, alpha=0.1, color='orange', label='Сильный ветер (30-50 км/ч)')
+        
+        # Устанавливаем границы по Y с запасом
+        y_high = max_wind * 1.15  # 15% запаса сверху
+        ax1.set_ylim(0, max(y_high, 60))
+        
+        # Добавляем среднее значение
+        avg_wind = sum(wind_speeds) / len(wind_speeds)
+        ax1.axhline(y=avg_wind, color='#9B59B6', linestyle='--', linewidth=1.5, alpha=0.7)
+        ax1.text(23.5, avg_wind, f'Среднее: {avg_wind:.1f} км/ч', 
+                ha='right', va='center', fontsize=9, color='#9B59B6',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
+        
+        # Если есть данные о направлении ветра, добавляем подсказки
+        if any(wind_directions):
+            # Добавляем текстовую информацию о направлении ветра в выбранные часы
+            for i in range(0, len(times), 3):  # Каждые 3 часа
+                if i < len(times):
+                    direction = wind_directions[i]
+                    direction_text = self.weather_api.get_wind_direction_text(direction)
+                    ax1.text(times[i], wind_speeds[i] - 8, f'{direction_text}', 
+                            ha='center', fontsize=8, color=text_color, alpha=0.7,
+                            rotation=45, bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.6))
+        
+        fig.tight_layout()
+        
+        # Встраиваем график в интерфейс
+        canvas = FigureCanvasTkAgg(fig, master=self.wind_chart_container)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        # Сохраняем ссылку на canvas
+        self.wind_chart_canvas = canvas
     
     def get_weather_conditions(self, weathercode):
         """Возвращает тип погоды для рекомендаций"""
@@ -1056,11 +1272,11 @@ class WeatherTab:
                 text_color="white"
             )
         
-        # Обновляем график, если он есть
-        if self.current_weather_data and self.chart_canvas:
-            # Пересоздаем график с новой темой
+        # Обновляем графики, если они есть
+        if self.current_weather_data:
             temp_unit = "°F" if self.settings_vars.get('temperature_unit', ctk.StringVar(value="celsius")).get() == "fahrenheit" else "°C"
             self.update_daily_chart(self.current_weather_data, temp_unit)
+            self.update_wind_chart(self.current_weather_data)
         
         # Обновляем цвета выпадающего списка, если он открыт
         self.update_dropdown_colors()
@@ -1455,7 +1671,7 @@ class WeatherTab:
         if 'current_weather' in weather_data:
             current = weather_data['current_weather']
             
-            # Сохраняем данные для рекомендаций и графика
+            # Сохраняем данные для рекомендаций и графиков
             self.current_weather_data = weather_data
             self.current_city_name = full_name
             
@@ -1528,8 +1744,9 @@ class WeatherTab:
             current_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
             self.time_label.configure(text=f"Обновлено: {current_time}")
             
-            # ОТРИСОВЫВАЕМ ГРАФИК
+            # ОТРИСОВЫВАЕМ ГРАФИКИ
             self.update_daily_chart(weather_data, temp_unit)
+            self.update_wind_chart(weather_data)
             
             # Если окно с рекомендациями открыто, обновляем его
             if self.recommendation_window and self.recommendation_window.winfo_exists():
