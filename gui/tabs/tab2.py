@@ -344,12 +344,12 @@ class Tab2:
         for i, (date, t_max, t_min) in enumerate(zip(dates, temps_max, temps_min)):
             # Максимальная температура (сверху)
             ax.annotate(f'{t_max:.0f}°', (date, t_max), textcoords="offset points", 
-                       xytext=(0, 8), ha='center', fontsize=8, fontweight='bold',
+                       xytext=(0, 8), ha='center', fontsize=12, fontweight='bold',
                        color=max_temp_color, bbox=dict(boxstyle='round,pad=0.2', 
                        facecolor=bg_color, alpha=0.7))
             # Минимальная температура (снизу)
             ax.annotate(f'{t_min:.0f}°', (date, t_min), textcoords="offset points", 
-                       xytext=(0, -12), ha='center', fontsize=8, fontweight='bold',
+                       xytext=(0, -12), ha='center', fontsize=12, fontweight='bold',
                        color=min_temp_color, bbox=dict(boxstyle='round,pad=0.2', 
                        facecolor=bg_color, alpha=0.7))
         
@@ -367,11 +367,11 @@ class Tab2:
         # Аннотации экстремумов
         ax.annotate(f'Макс: {max_temp:.1f}{temp_unit}', 
                    (dates[max_idx], max_temp), textcoords="offset points", 
-                   xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                   xytext=(10, 10), ha='left', fontsize=11, fontweight='bold',
                    color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
         ax.annotate(f'Мин: {min_temp:.1f}{temp_unit}', 
                    (dates[min_idx], min_temp), textcoords="offset points", 
-                   xytext=(10, -15), ha='left', fontsize=9, fontweight='bold',
+                   xytext=(10, -15), ha='left', fontsize=11, fontweight='bold',
                    color='#1E90FF', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
         
         for spine in ax.spines.values():
@@ -524,14 +524,14 @@ class Tab2:
         temp_max_label = ctk.CTkLabel(
             card,
             text=f"Макс: {temp_max:.1f} {temp_unit}",
-            font=("Arial", 11)
+            font=("Arial", 13)
         )
         temp_max_label.pack(pady=(0, 2))
         
         temp_min_label = ctk.CTkLabel(
             card,
             text=f"Мин: {temp_min:.1f} {temp_unit}",
-            font=("Arial", 11)
+            font=("Arial", 13)
         )
         temp_min_label.pack(pady=(0, 8))
         

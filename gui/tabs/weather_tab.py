@@ -458,7 +458,7 @@ class WeatherTab:
             if i % 2 == 0 or i == len(times) - 1:  # Показываем не все значения, чтобы не загромождать
                 offset = 12 if y > 0 else -15
                 ax1.annotate(f'{y:.1f}°', (x, y), textcoords="offset points", 
-                            xytext=(0, offset), ha='center', fontsize=8, 
+                            xytext=(0, offset), ha='center', fontsize=10, 
                             color=text_color, fontweight='bold',
                             bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
         
@@ -477,11 +477,11 @@ class WeatherTab:
         # Добавляем аннотации экстремумов
         ax1.annotate(f'Макс: {max_temp:.1f}{temp_unit}', 
                     (times[max_idx], max_temp), textcoords="offset points", 
-                    xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                    xytext=(10, 10), ha='left', fontsize=11, fontweight='bold',
                     color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
         ax1.annotate(f'Мин: {min_temp:.1f}{temp_unit}', 
                     (times[min_idx], min_temp), textcoords="offset points", 
-                    xytext=(10, -15), ha='left', fontsize=9, fontweight='bold',
+                    xytext=(10, -15), ha='left', fontsize=11, fontweight='bold',
                     color='#1E90FF', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
         
         # Устанавливаем границы по Y с запасом сверху и снизу
@@ -515,7 +515,7 @@ class WeatherTab:
         for bar, val in zip(bars, humidities):
             if val > 0:
                 ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2,
-                        f'{val:.0f}%', ha='center', va='bottom', fontsize=8, 
+                        f'{val:.0f}%', ha='center', va='bottom', fontsize=10, 
                         color=text_color, fontweight='bold')
         
         # Добавляем линию среднего значения влажности
@@ -529,7 +529,7 @@ class WeatherTab:
         
         # Добавляем текст среднего значения справа
         ax2.text(23.5, avg_humidity, f'Среднее: {avg_humidity:.0f}%', 
-                ha='right', va='center', fontsize=9, color='#FF6B6B',
+                ha='right', va='center', fontsize=10, color='#FF6B6B',
                 bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
         
         fig.tight_layout()
@@ -683,7 +683,7 @@ class WeatherTab:
             if i % 2 == 0 or i == len(times) - 1:
                 offset = 15 if y > 15 else 10
                 ax1.annotate(f'{y:.1f}', (x, y), textcoords="offset points", 
-                            xytext=(0, offset), ha='center', fontsize=9, 
+                            xytext=(0, offset), ha='center', fontsize=10, 
                             color=text_color, fontweight='bold',
                             bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.7))
         
@@ -698,7 +698,7 @@ class WeatherTab:
         # Добавляем аннотацию максимума
         ax1.annotate(f'Макс: {max_wind:.1f} км/ч', 
                     (times[max_idx], max_wind), textcoords="offset points", 
-                    xytext=(10, 10), ha='left', fontsize=9, fontweight='bold',
+                    xytext=(10, 10), ha='left', fontsize=11, fontweight='bold',
                     color='#FF6600', bbox=dict(boxstyle='round,pad=0.2', facecolor=bg_color, alpha=0.8))
         
         # Добавляем цветовые зоны для комфорта
