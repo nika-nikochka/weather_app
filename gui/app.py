@@ -63,6 +63,9 @@ class WeatherApp(ctk.CTk):
         # Создаем вкладки
         self.setup_tabs()
         
+        # Создаем кнопку справки
+        self.setup_help_button()
+        
         # Запускаем обновление времени
         self.update_time()
         
@@ -153,6 +156,198 @@ class WeatherApp(ctk.CTk):
         self.tooltip_label = None
         self.tooltip_timer = None
     
+    def setup_help_button(self):
+        """Создание кнопки справки в правом нижнем углу"""
+        # Создаем фрейм для кнопки справки
+        self.help_frame = ctk.CTkFrame(self, fg_color="transparent", height=40)
+        self.help_frame.place(relx=1.0, rely=1.0, x=-20, y=-20, anchor="se")
+        
+        # Кнопка справки с текстом
+        self.help_button = ctk.CTkButton(
+            self.help_frame,
+            text="? Справка",
+            width=100,
+            height=36,
+            font=("Arial", 13, "bold"),
+            corner_radius=18,
+            fg_color="#4A5568",
+            hover_color="#2D3748",
+            command=self.show_help_window
+        )
+        self.help_button.pack()
+        
+        # Добавляем подсказку при наведении
+        self.help_button.bind('<Enter>', lambda e: self.show_tooltip(e, "Открыть справку по использованию"))
+        self.help_button.bind('<Leave>', lambda e: self.hide_tooltip())
+    
+    def show_help_window(self):
+        """Отображает окно со справкой (вся справка в одном окне)"""
+        # Создаем окно справки
+        help_window = ctk.CTkToplevel(self)
+        help_window.title("? Справка - Погодный информатор")
+        help_window.geometry("600x650")
+        help_window.minsize(500, 550)
+        
+        # Делаем окно модальным
+        help_window.transient(self)
+        help_window.grab_set()
+        
+        # Настраиваем цвета в зависимости от темы
+        if self.theme.get() == "dark":
+            bg_color = "#2b2b2b"
+            text_color = "white"
+            frame_color = "#333333"
+            secondary_color = "#CCCCCC"
+        else:
+            bg_color = "white"
+            text_color = "black"
+            frame_color = "#f0f0f0"
+            secondary_color = "#666666"
+        
+        help_window.configure(fg_color=bg_color)
+        
+        # Заголовок с городом (как в окне рекомендаций)
+        header_frame = ctk.CTkFrame(help_window, fg_color=frame_color, height=60, corner_radius=10)
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        header_frame.pack_propagate(False)
+        
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="? Справка по использованию приложения",
+            font=("Arial", 18, "bold"),
+            text_color=text_color
+        )
+        title_label.pack(expand=True)
+        
+        # Основной контейнер для справки (как в окне рекомендаций)
+        main_frame = ctk.CTkFrame(help_window, fg_color=frame_color)
+        main_frame.pack(fill="both", expand=True, padx=15, pady=10)
+        
+        # Текст справки (вся в одном текстовом поле с прокруткой)
+        help_text = f"""
+📖 ОБЩАЯ ИНФОРМАЦИЯ
+
+«Погодный информатор» — приложение для получения актуальной информации 
+о погоде, прогнозов и исторических данных.
+📡 Данные предоставляются сервисом Open-Meteo API
+🌍 Поддерживаются все города мира!
+
+
+🔍 ВКЛАДКА «ТЕКУЩАЯ ПОГОДА»
+
+• Введите название города в поле поиска (на русском или английском)
+• При вводе появится выпадающий список с найденными городами
+• Нажмите «Найти» или Enter для получения погоды
+• Отобразятся: температура, ветер, влажность, давление, восход/закат
+• Нажмите «Рекомендации по одежде» для советов по экипировке
+• Графики покажут динамику температуры и ветра за сегодня
+
+
+📊 ВКЛАДКА «ПРОГНОЗ НА НЕСКОЛЬКО ДНЕЙ»
+
+• После выбора города на вкладке «Погода» прогноз загрузится автоматически
+• Выберите период: 7 или 14 дней
+• Вкладка «График температуры» покажет динамику max/min температур
+• Вкладка «Карточки прогноза» покажет детальную информацию по дням:
+  - Температура (max/min)
+  - Осадки и вероятность
+  - Скорость и направление ветра
+  - Описание погоды
+
+
+📈 ВКЛАДКА «ИСТОРИЯ ПОГОДЫ»
+
+• Выберите дату для анализа (кнопки ◀ Сегодня ▶)
+• Выберите период истории: 10, 25 или 50 лет
+• Нажмите «Загрузить исторические данные»
+• Будут показаны:
+  - Статистика за весь период
+  - Графики температур и осадков
+  - Таблица с данными по годам
+
+
+⚙️ ВКЛАДКА «НАСТРОЙКИ»
+
+▶ ЕДИНИЦЫ ИЗМЕРЕНИЯ:
+  • Температура: °C или °F
+  • Скорость ветра: км/ч или м/с
+  • Давление: гПа или мм рт. ст.
+  • Осадки: мм или дюймы
+
+▶ ОФОРМЛЕНИЕ:
+  • Тема: Светлая / Тёмная / Системная
+  • Язык: Русский / English (в разработке)
+
+▶ ДАННЫЕ:
+  • Автосохранение данных в файл
+  • Выбор папки для сохранения
+  • Период автоматического обновления: 5/15/30 мин
+
+⚠️ Не забудьте нажать «СОХРАНИТЬ НАСТРОЙКИ» после изменений!
+
+
+💡 ПОЛЕЗНЫЕ СОВЕТЫ
+
+• Нажмите на иконки вкладок в правой части шапки для быстрого переключения
+• Наведите курсор на иконку — появится подсказка
+• Кнопка «Рекомендации по одежде» учитывает:
+  - Текущую температуру и ощущаемую
+  - Скорость ветра и влажность
+  - УФ-индекс и вероятность осадков
+  - Время суток и сезон
+• Для исторических данных доступны даты с 1950 года по сегодня
+• Все графики адаптируются под выбранную тему оформления
+
+
+❓ ВОЗМОЖНЫЕ ПРОБЛЕМЫ
+
+• Город не найден → проверьте правильность написания
+• Нет исторических данных → попробуйте другую дату
+• Ошибка API → проверьте подключение к интернету
+• Графики не отображаются → выберите город на вкладке «Погода»
+
+
+📞 ТЕХНИЧЕСКАЯ ИНФОРМАЦИЯ
+
+Версия: 1.0
+API: Open-Meteo (бесплатный, без ключа)
+Разработчик: © 2026
+
+Для получения актуальной погоды требуется подключение к интернету.
+Данные обновляются автоматически согласно настройкам.
+
+✨ Наслаждайтесь использованием приложения!
+    """
+        
+        # Создаем текстовое поле с прокруткой (как в окне рекомендаций)
+        textbox = ctk.CTkTextbox(
+            main_frame,
+            wrap="word",
+            font=("Arial", 13),
+            text_color=text_color,
+            fg_color="transparent",
+            border_width=0
+        )
+        textbox.pack(padx=20, pady=20, fill="both", expand=True)
+        textbox.insert("1.0", help_text)
+        textbox.configure(state="disabled")  # Только для чтения
+        
+        # Кнопка закрытия (как в окне рекомендаций)
+        close_button = ctk.CTkButton(
+            help_window,
+            text="Закрыть",
+            command=help_window.destroy,
+            height=35,
+            width=120,
+            fg_color="#E53E3E",
+            hover_color="#C53030",
+            text_color="white"
+        )
+        close_button.pack(pady=(5, 15))
+        
+        # Обработчик закрытия окна
+        help_window.protocol("WM_DELETE_WINDOW", help_window.destroy)
+    
     def show_tooltip(self, event, text):
         """Показывает всплывающую подсказку сразу"""
         # Скрываем предыдущую подсказку
@@ -160,9 +355,7 @@ class WeatherApp(ctk.CTk):
 
         # Получаем координаты виджета
         widget = event.widget
-        #x = self.winfo_width() - 1000
         x = (event.x_root - self.winfo_rootx() + 10) / 2 - 36
-        #x = (self.winfo_width() * 0.4) #- (widget.winfo_x() + widget.winfo_width()) * 10
         y = widget.winfo_y() + widget.winfo_height() + 8
 
         # Создаём подсказку
